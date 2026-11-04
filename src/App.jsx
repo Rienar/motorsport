@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trophy, Calendar as CalendarIcon, MapPin, Globe, Clock, AlertCircle, RefreshCw } from 'lucide-react';
 
 const SUPABASE_URL = "https://qugdovsytjqjawsesdix.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1Z2RvdnN5dGpxamF3c2VzZGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE5MTY2MTU4MTksImV4cCI6MjIzMjE5MTgxOX0.aYt_F8z0tT6aF0W1hO2uX8dK9jL3mN4pQ5rS6tU7vW8";
+const SUPABASE_ANON_KEY = "sb_publishable_DrPG1dGhbIWU2EARd9v88g_X3c_pPvX";
 
 export default function App() {
   const [races, setRaces] = useState([]);
