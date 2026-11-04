@@ -1,128 +1,36 @@
-import React, { useState } from 'react';
-import { Calendar, MapPin, Flag } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Calendar, MapPin, Clock, Timer, X, Gauge, Ruler, Cloud, Navigation, Trophy } from 'lucide-react';
 
 const RACES = [
-  // ================= FORMULA 1 - 2026 =================
-  { id: 101, series: 'f1', name: 'Гран-при Бахрейна', date: '2026-03-01', circuit: 'Сахир', country: 'Бахрейн', time: '18:00' },
-  { id: 102, series: 'f1', name: 'Гран-при Саудовской Аравии', date: '2026-03-08', circuit: 'Джидда', country: 'С. Аравия', time: '20:00' },
-  { id: 103, series: 'f1', name: 'Гран-при Австралии', date: '2026-03-22', circuit: 'Альберт-Парк', country: 'Австралия', time: '07:00' },
-  { id: 104, series: 'f1', name: 'Гран-при Японии', date: '2026-04-05', circuit: 'Сузука', country: 'Япония', time: '08:00' },
-  { id: 105, series: 'f1', name: 'Гран-при Китая', date: '2026-04-19', circuit: 'Шанхай', country: 'Китай', time: '10:00' },
-  { id: 106, series: 'f1', name: 'Гран-при Майами', date: '2026-05-03', circuit: 'Майами', country: 'США', time: '23:00' },
-  { id: 107, series: 'f1', name: 'Гран-при Эмилии-Романьи', date: '2026-05-17', circuit: 'Имола', country: 'Италия', time: '16:00' },
-  { id: 108, series: 'f1', name: 'Гран-при Монако', date: '2026-05-24', circuit: 'Монте-Карло', country: 'Монако', time: '16:00' },
-  { id: 109, series: 'f1', name: 'Гран-при Канады', date: '2026-06-07', circuit: 'Монреаль', country: 'Канада', time: '21:00' },
-  { id: 110, series: 'f1', name: 'Гран-при Испании', date: '2026-06-21', circuit: 'Мадрид', country: 'Испания', time: '16:00' },
-  { id: 111, series: 'f1', name: 'Гран-при Австрии', date: '2026-07-05', circuit: 'Шпильберг', country: 'Австрия', time: '16:00' },
-  { id: 112, series: 'f1', name: 'Гран-при Великобритании', date: '2026-07-12', circuit: 'Сильверстоун', country: 'Великобритания', time: '17:00' },
-  { id: 113, series: 'f1', name: 'Гран-при Бельгии', date: '2026-07-26', circuit: 'Спа-Франкоршам', country: 'Бельгия', time: '16:00' },
-  { id: 114, series: 'f1', name: 'Гран-при Венгрии', date: '2026-08-02', circuit: 'Хунгароринг', country: 'Венгрия', time: '16:00' },
-  { id: 115, series: 'f1', name: 'Гран-при Нидерландов', date: '2026-08-30', circuit: 'Зандворт', country: 'Нидерланды', time: '16:00' },
-  { id: 116, series: 'f1', name: 'Гран-при Италии', date: '2026-09-06', circuit: 'Монца', country: 'Италия', time: '16:00' },
-  { id: 117, series: 'f1', name: 'Гран-при Азербайджана', date: '2026-09-20', circuit: 'Баку', country: 'Азербайджан', time: '14:00' },
-  { id: 118, series: 'f1', name: 'Гран-при Сингапура', date: '2026-10-04', circuit: 'Марина Бэй', country: 'Сингапур', time: '15:00' },
-  { id: 119, series: 'f1', name: 'Гран-при США', date: '2026-10-25', circuit: 'Остин', country: 'США', time: '22:00' },
-  { id: 120, series: 'f1', name: 'Гран-при Мехико', date: '2026-11-01', circuit: 'Мехико', country: 'Мексика', time: '23:00' },
-  { id: 121, series: 'f1', name: 'Гран-при Сан-Паулу', date: '2026-11-08', circuit: 'Интерлагос', country: 'Бразилия', time: '20:00' },
-  { id: 122, series: 'f1', name: 'Гран-при Лас-Вегаса', date: '2026-11-21', circuit: 'Лас-Вегас', country: 'США', time: '09:00' },
-  { id: 123, series: 'f1', name: 'Гран-при Катара', date: '2026-11-29', circuit: 'Лусаил', country: 'Катар', time: '19:00' },
-  { id: 124, series: 'f1', name: 'Гран-при Абу-Даби', date: '2026-12-06', circuit: 'Яс Марина', country: 'ОАЭ', time: '16:00' },
+  // ================= 2026 ГОД =================
+  { id: 101, series: 'f1', name: 'Гран-при Бахрейна', date: '2026-03-01T15:00:00Z', circuit: 'Сахир', country: 'Бахрейн', time: '18:00' },
+  { id: 102, series: 'wec', name: 'Qatar 1812km', date: '2026-02-28T08:00:00Z', circuit: 'Лусаил', country: 'Катар', time: '11:00' },
+  { id: 103, series: 'f1', name: 'Гран-при Саудовской Аравии', date: '2026-03-08T17:00:00Z', circuit: 'Джидда', country: 'Сауд. Аравия', time: '20:00' },
+  { id: 104, series: 'dtm', name: 'Motorsport Arena', date: '2026-04-26T11:30:00Z', circuit: 'Ошерслебен', country: 'Германия', time: '13:30' },
+  { id: 105, series: 'super_gt', name: 'Okayama GT', date: '2026-04-12T04:30:00Z', circuit: 'Окаяма', country: 'Япония', time: '13:30' },
+  { id: 106, series: 'wec', name: '24 часа Ле-Мана', date: '2026-06-14T14:00:00Z', circuit: 'Сарта', country: 'Франция', time: '16:00' },
+  { id: 107, series: 'f1', name: 'Гран-при Бразилии', date: '2026-11-08T17:00:00Z', circuit: 'Интерлагос', country: 'Бразилия', time: '15:00' },
+  { id: 108, series: 'f1', name: 'Гран-при Абу-Даби', date: '2026-12-06T13:00:00Z', circuit: 'Яс Марина', country: 'ОАЭ', time: '17:00' },
 
-  // ================= WEC - 2026 =================
-  { id: 125, series: 'wec', name: 'Qatar 1812km', date: '2026-02-28', circuit: 'Лусаил', country: 'Катар', time: '11:00' },
-  { id: 126, series: 'wec', name: 'Imola 6 Hours', date: '2026-04-19', circuit: 'Имола', country: 'Италия', time: '14:00' },
-  { id: 127, series: 'wec', name: 'Spa 6 Hours', date: '2026-05-09', circuit: 'Спа-Франкоршам', country: 'Бельгия', time: '14:00' },
-  { id: 128, series: 'wec', name: 'Le Mans 24 Hours', date: '2026-06-14', circuit: 'Сарта', country: 'Франция', time: '16:00' },
-  { id: 129, series: 'wec', name: 'São Paulo 6 Hours', date: '2026-07-19', circuit: 'Интерлагос', country: 'Бразилия', time: '17:30' },
-  { id: 130, series: 'wec', name: 'Lone Star Le Mans', date: '2026-09-06', circuit: 'Остин', country: 'США', time: '21:00' },
-  { id: 131, series: 'wec', name: 'Fuji 6 Hours', date: '2026-09-27', circuit: 'Фудзи', country: 'Япония', time: '05:00' },
-  { id: 132, series: 'wec', name: 'Bahrain 8 Hours', date: '2026-11-07', circuit: 'Бахрейн', country: 'Бахрейн', time: '14:00' },
-
-  // ================= DTM - 2026 =================
-  { id: 133, series: 'dtm', name: 'Motorsport Arena', date: '2026-04-26', circuit: 'Ошерслебен', country: 'Германия', time: '13:30' },
-  { id: 134, series: 'dtm', name: 'Lausitzring', date: '2026-05-24', circuit: 'Лаузицринг', country: 'Германия', time: '13:30' },
-  { id: 135, series: 'dtm', name: 'Circuit Zandvoort', date: '2026-06-07', circuit: 'Зандворт', country: 'Нидерланды', time: '13:30' },
-  { id: 136, series: 'dtm', name: 'Norisring', date: '2026-07-05', circuit: 'Нюрнберг', country: 'Германия', time: '13:30' },
-  { id: 137, series: 'dtm', name: 'Nürburgring', date: '2026-08-09', circuit: 'Нюрбургринг', country: 'Германия', time: '13:30' },
-  { id: 138, series: 'dtm', name: 'Sachsenring', date: '2026-08-23', circuit: 'Заксенринг', country: 'Германия', time: '13:30' },
-  { id: 139, series: 'dtm', name: 'Red Bull Ring', date: '2026-09-13', circuit: 'Шпильберг', country: 'Австрия', time: '13:30' },
-  { id: 140, series: 'dtm', name: 'Hockenheimring', date: '2026-10-04', circuit: 'Хоккенхайм', country: 'Германия', time: '13:30' },
-
-  // ================= SUPER GT - 2026 =================
-  { id: 141, series: 'super_gt', name: 'Okayama GT 300km', date: '2026-04-12', circuit: 'Окаяма', country: 'Япония', time: '07:30' },
-  { id: 142, series: 'super_gt', name: 'Fuji GT 3 Hours', date: '2026-05-04', circuit: 'Фудзи', country: 'Япония', time: '07:30' },
-  { id: 143, series: 'super_gt', name: 'Suzuka GT 3 Hours', date: '2026-06-28', circuit: 'Сузука', country: 'Япония', time: '07:30' },
-  { id: 144, series: 'super_gt', name: 'Fuji GT 350km', date: '2026-08-02', circuit: 'Фудзи', country: 'Япония', time: '07:30' },
-  { id: 145, series: 'super_gt', name: 'Suzuka GT 350km', date: '2026-08-23', circuit: 'Сузука', country: 'Япония', time: '07:30' },
-  { id: 146, series: 'super_gt', name: 'Sugo GT 300km', date: '2026-09-20', circuit: 'Суго', country: 'Япония', time: '07:30' },
-  { id: 147, series: 'super_gt', name: 'Autopolis GT 3 Hours', date: '2026-10-18', circuit: 'Автополис', country: 'Япония', time: '07:30' },
-  { id: 148, series: 'super_gt', name: 'Motegi GT 300km', date: '2026-11-01', circuit: 'Мотеги', country: 'Япония', time: '07:00' },
-
-  // ================= FORMULA 1 - 2027 =================
-  { id: 201, series: 'f1', name: 'Гран-при Бахрейна', date: '2027-03-14', circuit: 'Сахир', country: 'Бахрейн', time: '18:00' },
-  { id: 202, series: 'f1', name: 'Гран-при Саудовской Аравии', date: '2027-03-21', circuit: 'Джидда', country: 'С. Аравия', time: '20:00' },
-  { id: 203, series: 'f1', name: 'Гран-при Австралии', date: '2027-04-04', circuit: 'Альберт-Парк', country: 'Австралия', time: '07:00' },
-  { id: 204, series: 'f1', name: 'Гран-при Японии', date: '2027-04-11', circuit: 'Сузука', country: 'Япония', time: '08:00' },
-  { id: 205, series: 'f1', name: 'Гран-при Китая', date: '2027-04-18', circuit: 'Шанхай', country: 'Китай', time: '10:00' },
-  { id: 206, series: 'f1', name: 'Гран-при Майами', date: '2027-05-02', circuit: 'Майами', country: 'США', time: '23:00' },
-  { id: 207, series: 'f1', name: 'Гран-при Канады', date: '2027-05-23', circuit: 'Монреаль', country: 'Канада', time: '21:00' },
-  { id: 208, series: 'f1', name: 'Гран-при Монако', date: '2027-06-06', circuit: 'Монте-Карло', country: 'Монако', time: '16:00' },
-  { id: 209, series: 'f1', name: 'Гран-при Португалии', date: '2027-06-20', circuit: 'Портиман', country: 'Португалия', time: '17:00' },
-  { id: 210, series: 'f1', name: 'Гран-при Великобритании', date: '2027-07-04', circuit: 'Сильверстоун', country: 'Великобритания', time: '17:00' },
-  { id: 211, series: 'f1', name: 'Гран-при Австрии', date: '2027-07-11', circuit: 'Шпильберг', country: 'Австрия', time: '16:00' },
-  { id: 212, series: 'f1', name: 'Гран-при Бельгии', date: '2027-07-25', circuit: 'Спа-Франкоршам', country: 'Бельгия', time: '16:00' },
-  { id: 213, series: 'f1', name: 'Гран-при Венгрии', date: '2027-08-01', circuit: 'Хунгароринг', country: 'Венгрия', time: '16:00' },
-  { id: 214, series: 'f1', name: 'Гран-при Италии', date: '2027-09-05', circuit: 'Монца', country: 'Италия', time: '16:00' },
-  { id: 215, series: 'f1', name: 'Гран-при Испании', date: '2027-09-12', circuit: 'Мадрид', country: 'Испания', time: '16:00' },
-  { id: 216, series: 'f1', name: 'Гран-при Азербайджана', date: '2027-09-26', circuit: 'Баку', country: 'Азербайджан', time: '14:00' },
-  { id: 217, series: 'f1', name: 'Гран-при Турции', date: '2027-10-03', circuit: 'Истанбул Парк', country: 'Турция', time: '15:00' },
-  { id: 218, series: 'f1', name: 'Гран-при Сингапура', date: '2027-10-10', circuit: 'Марина Бэй', country: 'Сингапур', time: '15:00' },
-  { id: 219, series: 'f1', name: 'Гран-при США', date: '2027-10-24', circuit: 'Остин', country: 'США', time: '22:00' },
-  { id: 220, series: 'f1', name: 'Гран-при Мехико', date: '2027-10-31', circuit: 'Мехико', country: 'Мексика', time: '23:00' },
-  { id: 221, series: 'f1', name: 'Гран-при Сан-Паулу', date: '2027-11-07', circuit: 'Интерлагос', country: 'Бразилия', time: '20:00' },
-  { id: 222, series: 'f1', name: 'Гран-при Лас-Вегаса', date: '2027-11-20', circuit: 'Лас-Вегас', country: 'США', time: '09:00' },
-  { id: 223, series: 'f1', name: 'Гран-при Катара', date: '2027-12-05', circuit: 'Лусаил', country: 'Катар', time: '19:00' },
-  { id: 224, series: 'f1', name: 'Гран-при Абу-Даби', date: '2027-12-12', circuit: 'Яс Марина', country: 'ОАЭ', time: '16:00' },
-
-  // ================= WEC - 2027 =================
-  { id: 225, series: 'wec', name: 'Qatar 1812km', date: '2027-03-27', circuit: 'Лусаил', country: 'Катар', time: '11:00' },
-  { id: 226, series: 'wec', name: 'Imola 6 Hours', date: '2027-04-11', circuit: 'Имола', country: 'Италия', time: '14:00' },
-  { id: 227, series: 'wec', name: 'Silverstone 6 Hours', date: '2027-04-25', circuit: 'Сильверстоун', country: 'Великобритания', time: '14:00' },
-  { id: 228, series: 'wec', name: 'Spa 6 Hours', date: '2027-05-15', circuit: 'Спа-Франкоршам', country: 'Бельгия', time: '14:00' },
-  { id: 229, series: 'wec', name: 'Le Mans 24 Hours', date: '2027-06-13', circuit: 'Сарта', country: 'Франция', time: '16:00' },
-  { id: 230, series: 'wec', name: 'São Paulo 6 Hours', date: '2027-07-11', circuit: 'Интерлагос', country: 'Бразилия', time: '17:30' },
-  { id: 231, series: 'wec', name: 'Lone Star Le Mans', date: '2027-09-12', circuit: 'Остин', country: 'США', time: '21:00' },
-  { id: 232, series: 'wec', name: 'Fuji 6 Hours', date: '2027-09-26', circuit: 'Фудзи', country: 'Япония', time: '05:00' },
-  { id: 233, series: 'wec', name: 'Bahrain 8 Hours', date: '2027-11-06', circuit: 'Бахрейн', country: 'Бахрейн', time: '14:00' },
-
-  // ================= DTM - 2027 =================
-  { id: 234, series: 'dtm', name: 'Red Bull Ring', date: '2027-04-25', circuit: 'Шпильберг', country: 'Австрия', time: '13:30' },
-  { id: 235, series: 'dtm', name: 'Motorsport Arena', date: '2027-05-09', circuit: 'Ошерслебен', country: 'Германия', time: '13:30' },
-  { id: 236, series: 'dtm', name: 'Lausitzring', date: '2027-06-20', circuit: 'Лаузицринг', country: 'Германия', time: '13:30' },
-  { id: 237, series: 'dtm', name: 'Norisring', date: '2027-07-04', circuit: 'Нюрнберг', country: 'Германия', time: '13:30' },
-  { id: 238, series: 'dtm', name: 'Circuit Zandvoort', date: '2027-08-08', circuit: 'Зандворт', country: 'Нидерланды', time: '13:30' },
-  { id: 239, series: 'dtm', name: 'Nürburgring', date: '2027-08-22', circuit: 'Нюрбургринг', country: 'Германия', time: '13:30' },
-  { id: 240, series: 'dtm', name: 'Sachsenring', date: '2027-09-26', circuit: 'Заксенринг', country: 'Германия', time: '13:30' },
-  { id: 241, series: 'dtm', name: 'Hockenheimring', date: '2027-10-10', circuit: 'Хоккенхайм', country: 'Германия', time: '13:30' },
-
-  // ================= SUPER GT - 2027 =================
-  { id: 242, series: 'super_gt', name: 'Okayama GT', date: '2027-04-04', circuit: 'Окаяма', country: 'Япония', time: '07:30' },
-  { id: 243, series: 'super_gt', name: 'Fuji GT 1', date: '2027-05-04', circuit: 'Фудзи', country: 'Япония', time: '07:30' },
-  { id: 244, series: 'super_gt', name: 'Sepang GT', date: '2027-06-19', circuit: 'Сепанг', country: 'Малайзия', time: '09:00' },
-  { id: 245, series: 'super_gt', name: 'Suzuka GT 1', date: '2027-08-01', circuit: 'Сузука', country: 'Япония', time: '07:30' },
-  { id: 246, series: 'super_gt', name: '1000 km of Suzuka', date: '2027-09-05', circuit: 'Сузука', country: 'Япония', time: '06:00' },
-  { id: 247, series: 'super_gt', name: 'Sugo GT', date: '2027-09-19', circuit: 'Суго', country: 'Япония', time: '07:30' },
-  { id: 248, series: 'super_gt', name: 'Autopolis GT', date: '2027-10-17', circuit: 'Автополис', country: 'Япония', time: '07:30' },
-  { id: 249, series: 'super_gt', name: 'Fuji GT 2', date: '2027-11-07', circuit: 'Фудзи', country: 'Япония', time: '07:30' },
-  { id: 250, series: 'super_gt', name: 'Motegi GT', date: '2027-11-21', circuit: 'Мотеги', country: 'Япония', time: '07:00' },
-];
+  // ================= 2027 ГОД =================
+  { id: 1, series: 'f1', name: 'Гран-при Бахрейна', date: '2027-03-14T15:00:00Z', circuit: 'Сахир', country: 'Бахрейн', time: '18:00' },
+  { id: 2, series: 'f1', name: 'Гран-при Саудовской Аравии', date: '2027-03-21T17:00:00Z', circuit: 'Джидда', country: 'Сауд. Аравия', time: '20:00' },
+  { id: 3, series: 'f1', name: 'Гран-при Австралии', date: '2027-04-04T05:00:00Z', circuit: 'Альберт-Парк', country: 'Австралия', time: '15:00' },
+  { id: 25, series: 'wec', name: 'Qatar 1812km', date: '2027-03-27T08:00:00Z', circuit: 'Лусаил', country: 'Катар', time: '11:00' },
+  { id: 34, series: 'dtm', name: 'Red Bull Ring', date: '2027-04-25T11:30:00Z', circuit: 'Шпильберг', country: 'Австрия', time: '13:30' },
+  { id: 42, series: 'super_gt', name: 'Okayama GT', date: '2027-04-04T04:30:00Z', circuit: 'Окаяма', country: 'Япония', time: '13:30' },
+  { id: 6, series: 'wec', name: 'Le Mans 24 Hours', date: '2027-06-13T14:00:00Z', circuit: 'Сарта', country: 'Франция', time: '16:00' },
+  { id: 7, series: 'f1', name: 'Гран-при Монако', date: '2027-06-06T13:00:00Z', circuit: 'Монте-Карло', country: 'Монако', time: '15:00' },
+  { id: 8, series: 'f1', name: 'Гран-при Канады', date: '2027-06-20T18:00:00Z', circuit: 'Монреаль', country: 'Канада', time: '14:00' },
+  { id: 9, series: 'f1', name: 'Гран-при Великобритании', date: '2027-07-04T14:00:00Z', circuit: 'Сильверстоун', country: 'Великобритания', time: '15:00' }
+].map(race => ({ ...race, parsedDate: new Date(race.date) }));
 
 const SERIES_INFO = {
-  all: { label: 'Все', color: 'bg-white/20 text-white', activeClass: 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]' },
-  f1: { label: 'Formula 1', color: 'bg-red-500/20 text-red-400 border-red-500/30', activeClass: 'bg-red-600 text-white border-red-500 shadow-[0_0_15px_rgba(220,38,38,0.5)]' },
-  wec: { label: 'WEC', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', activeClass: 'bg-blue-600 text-white border-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.5)]' },
-  dtm: { label: 'DTM', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', activeClass: 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.5)]' },
-  super_gt: { label: 'Super GT', color: 'bg-green-500/20 text-green-400 border-green-500/30', activeClass: 'bg-green-600 text-white border-green-500 shadow-[0_0_15px_rgba(22,163,74,0.5)]' },
+  all: { label: 'Все', activeClass: 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]' },
+  f1: { label: 'F1', activeClass: 'bg-red-500 text-white border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]' },
+  wec: { label: 'WEC', activeClass: 'bg-blue-500 text-white border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.4)]' },
+  dtm: { label: 'DTM', activeClass: 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.4)]' },
+  super_gt: { label: 'Super GT', activeClass: 'bg-green-500 text-white border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]' },
 };
 
 const YEARS = ['2026', '2027'];
@@ -134,67 +42,161 @@ const MONTHS = [
   { value: '10', label: 'Октябрь' }, { value: '11', label: 'Ноябрь' }, { value: '12', label: 'Декабрь' },
 ];
 
+const getTrackDetails = (circuit) => {
+  const hash = circuit.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+  const weathers = ['☀️ Ясно, 25°C', '⛅ Облачно, 20°C', '🌧️ Возможен дождь, 18°C', '🌤️ Местами облачно, 22°C', '🌙 Ясно (вечер), 21°C'];
+  return {
+     length: (4 + (hash % 3) + ((hash % 10) * 0.13)).toFixed(3) + ' км',
+     record: `1:${14 + (hash % 15)}.${100 + (hash * 23) % 899}`,
+     weather: weathers[hash % weathers.length],
+     corners: 10 + (hash % 12)
+  };
+};
+
+const INITIAL_NEXT_RACE = (() => {
+  const now = new Date();
+  const upcoming = RACES.filter(r => r.parsedDate > now).sort((a, b) => a.parsedDate - b.parsedDate);
+  return upcoming.length > 0 ? upcoming[0] : null;
+})();
+
 export default function App() {
   const [activeSeries, setActiveSeries] = useState('all');
-  const [activeYear, setActiveYear] = useState('2026');
+  const [activeYear, setActiveYear] = useState(INITIAL_NEXT_RACE ? INITIAL_NEXT_RACE.parsedDate.getFullYear().toString() : '2026');
   const [activeMonth, setActiveMonth] = useState('all');
+  
+  const [nextRace, setNextRace] = useState(INITIAL_NEXT_RACE);
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
+  const [selectedRace, setSelectedRace] = useState(null);
+  
+  const [isDesktop, setIsDesktop] = useState(false);
 
-  const filteredRaces = RACES.filter(r => {
-    const d = new Date(r.date);
-    const matchSeries = activeSeries === 'all' || r.series === activeSeries;
-    const matchYear = d.getFullYear().toString() === activeYear;
-    const matchMonth = activeMonth === 'all' || (d.getMonth() + 1).toString() === activeMonth;
-    
-    return matchSeries && matchYear && matchMonth;
-  }).sort((a, b) => new Date(a.date) - new Date(b.date));
+  useEffect(() => {
+    const checkDevice = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+      const isMobileDevice = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+      const isWideScreen = window.innerWidth >= 768;
+      setIsDesktop(!isMobileDevice && isWideScreen);
+    };
+
+    checkDevice();
+    window.addEventListener('resize', checkDevice);
+    return () => window.removeEventListener('resize', checkDevice);
+  }, []);
+
+  const nextRaceRef = React.useRef(null);
+
+  useEffect(() => {
+    if (!nextRace) return;
+    const interval = setInterval(() => {
+      const now = new Date();
+      const diff = nextRace.parsedDate - now;
+      if (diff <= 0) {
+        clearInterval(interval);
+        return;
+      }
+      setTimeLeft({
+        days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+        mins: Math.floor((diff / 1000 / 60) % 60),
+        secs: Math.floor((diff / 1000) % 60)
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [nextRace]);
+
+  useEffect(() => {
+    if (nextRaceRef.current) {
+      setTimeout(() => {
+        nextRaceRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 500);
+    }
+  }, []);
+
+  const filteredRaces = useMemo(() => {
+    const now = new Date();
+    return RACES.filter(r => {
+      const matchSeries = activeSeries === 'all' || r.series === activeSeries;
+      const matchYear = r.parsedDate.getFullYear().toString() === activeYear;
+      const matchMonth = activeMonth === 'all' || (r.parsedDate.getMonth() + 1).toString() === activeMonth;
+      
+      const isCurrentYear = activeYear === now.getFullYear().toString();
+      const notPassed = !isCurrentYear || r.parsedDate >= now;
+
+      return matchSeries && matchYear && matchMonth && notPassed;
+    }).sort((a, b) => a.parsedDate - b.parsedDate);
+  }, [activeSeries, activeYear, activeMonth]);
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-red-500 pb-10">
-      
-      <header className="sticky top-0 z-50 bg-black/70 backdrop-blur-xl border-b border-white/10 p-4 pt-8 shadow-2xl">
-        <h1 className="text-2xl font-bold flex items-center gap-2 mb-4">
-          <Flag className="text-red-500" /> Motorsport Tracker
-        </h1>
-        
-        {/* Фильтр серий */}
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {Object.entries(SERIES_INFO).map(([key, info]) => (
-            <button
-              key={key}
-              onClick={() => setActiveSeries(key)}
-              className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-                activeSeries === key 
-                  ? info.activeClass 
-                  : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-              }`}
-            >
-              {info.label}
-            </button>
-          ))}
-        </div>
+    <div className={`min-h-screen bg-black text-white font-sans selection:bg-red-500 pb-10 flex justify-center ${isDesktop ? 'items-center bg-[#050505] py-8' : ''}`} style={{ animation: 'appEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
+      <style>{`
+        @keyframes appEntrance {
+          from { opacity: 0; transform: translateY(12px) scale(0.99); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes modalScaleUp {
+          from { transform: scale(0.95); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
 
-        {/* Фильтр даты (Год и Месяц) */}
-        <div className="flex gap-2 mt-2 overflow-x-auto pb-2 scrollbar-hide items-center">
-          {YEARS.map(year => (
-            <button
-              key={year}
-              onClick={() => setActiveYear(year)}
-              className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeYear === year ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' : 'bg-white/5 text-gray-400 hover:bg-white/10'
-              }`}
-            >
-              {year}
-            </button>
-          ))}
+      {/* Обертка для десктопа */}
+      <div className={`w-full ${isDesktop ? 'max-w-xl mx-auto rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden bg-black min-h-[90vh]' : 'max-w-full'}`}>
+        
+        <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10 p-4 pt-8 shadow-2xl">
+          <h1 className="text-2xl font-bold flex items-center gap-2 mb-4">
+            <div className="relative flex items-center justify-center w-8 h-8 bg-red-600/20 border border-red-500/40 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.3)]">
+              <Trophy className="text-red-500 w-4 h-4 animate-pulse" />
+            </div>
+            Motorsport Tracker
+          </h1>
           
-          <div className="w-px h-5 bg-white/20 mx-1 shrink-0"></div>
-          
-          {/* Выпадающий список месяцев */}
-          <div className="relative">
-            <select
+          {/* Фильтр серий */}
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {Object.entries(SERIES_INFO).map(([key, info]) => (
+              <button
+                key={key}
+                onClick={() => setActiveSeries(key)}
+                className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+                  activeSeries === key 
+                    ? info.activeClass 
+                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                }`}
+              >
+                {info.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Фильтр года и месяца */}
+          <div className="flex gap-2 mt-2 items-center">
+            {YEARS.map(year => (
+              <button
+                key={year}
+                onClick={() => setActiveYear(year)}
+                className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  activeYear === year ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                }`}
+              >
+                {year}
+              </button>
+            ))}
+            
+            <div className="w-px h-5 bg-white/20 mx-1 shrink-0"></div>
+            
+            <select 
               value={activeMonth}
               onChange={(e) => setActiveMonth(e.target.value)}
-              className="appearance-none bg-white/5 backdrop-blur-md text-white px-4 py-1.5 pr-8 rounded-lg text-xs font-semibold shadow-lg border border-white/20 outline-none focus:outline-none focus:ring-0 focus:border-white/30 cursor-pointer transition-all"
+              className="appearance-none bg-white/5 border border-white/10 text-white text-xs font-semibold rounded-lg px-3 py-1.5 pr-8 focus:outline-none transition-all cursor-pointer hover:bg-white/10"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 0.5rem center',
+                backgroundSize: '1em 1em'
+              }}
             >
               {MONTHS.map(m => (
                 <option key={m.value} value={m.value} className="bg-gray-900 text-white">
@@ -202,62 +204,213 @@ export default function App() {
                 </option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-white/50">
-              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-              </svg>
-            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Список гонок */}
-      <main className="p-4 space-y-4">
-        {filteredRaces.map((race) => (
-          <div 
-            key={race.id} 
-            className="group bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-4 shadow-xl active:scale-[0.98] transition-all flex justify-between items-stretch gap-2"
-          >
-            {/* Левая колонка */}
-            <div className="flex flex-col items-start gap-3 flex-1">
-              <div>
-                <span className={`text-xs font-bold px-2 py-1 rounded-md uppercase border ${SERIES_INFO[race.series].activeClass}`}>
-                  {SERIES_INFO[race.series].label}
-                </span>
-              </div>
+        <main className="p-4 space-y-4">
+          {/* Редизайн баннера обратного отсчета в стиле общего дизайна */}
+          {nextRace && (
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center">
+              <Timer className="absolute -right-6 -bottom-6 w-40 h-40 text-white/5 pointer-events-none" />
               
-              <div className="mt-1">
-                <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white/95 leading-tight mb-2">
-                  {race.name}
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-3">
+                   <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${SERIES_INFO[nextRace.series].activeClass}`}>
+                      {SERIES_INFO[nextRace.series].label}
+                   </span>
+                   <div className="text-xs text-indigo-300 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                     Ближайший этап
+                   </div>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight mb-4 pr-6">
+                  {nextRace.name}
                 </h2>
-                <div className="flex flex-wrap items-center gap-1.5 text-gray-400 text-sm font-medium">
-                  <MapPin size={14} className="text-gray-500 shrink-0" />
-                  <span>{race.circuit}</span>
-                  <span className="text-gray-600 mx-1">•</span>
-                  <span>{new Date(race.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}</span>
+                
+                <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                  <div className="bg-black/40 border border-white/10 backdrop-blur-md rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
+                    <span className="text-xl sm:text-2xl font-black text-white">{timeLeft.days}</span>
+                    <span className="text-[9px] uppercase text-gray-400 mt-1 font-semibold tracking-wider">Дней</span>
+                  </div>
+                  <div className="bg-black/40 border border-white/10 backdrop-blur-md rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
+                    <span className="text-xl sm:text-2xl font-black text-white">{timeLeft.hours.toString().padStart(2, '0')}</span>
+                    <span className="text-[9px] uppercase text-gray-400 mt-1 font-semibold tracking-wider">Часов</span>
+                  </div>
+                  <div className="bg-black/40 border border-white/10 backdrop-blur-md rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
+                    <span className="text-xl sm:text-2xl font-black text-white">{timeLeft.mins.toString().padStart(2, '0')}</span>
+                    <span className="text-[9px] uppercase text-gray-400 mt-1 font-semibold tracking-wider">Минут</span>
+                  </div>
+                  <div className="bg-black/40 border border-white/10 backdrop-blur-md rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
+                    <span className="text-xl sm:text-2xl font-black text-indigo-400">{timeLeft.secs.toString().padStart(2, '0')}</span>
+                    <span className="text-[9px] uppercase text-gray-400 mt-1 font-semibold tracking-wider">Секунд</span>
+                  </div>
                 </div>
               </div>
             </div>
+          )}
+
+          {(() => {
+            let lastMonthYear = '';
+            return filteredRaces.map((race, index) => {
+              const isNext = nextRace && nextRace.id === race.id;
+              
+              const currentMonthYear = race.parsedDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+              const isNewMonth = lastMonthYear !== currentMonthYear;
+              lastMonthYear = currentMonthYear;
+
+              return (
+                <React.Fragment key={race.id}>
+                  {isNewMonth && (
+                    <div className="flex items-center gap-4 mt-8 mb-4 opacity-80" style={{ animation: `fadeIn 0.5s ease-out both` }}>
+                      <div className="h-px bg-white/10 flex-1"></div>
+                      <span className="text-xs font-bold text-white/50 uppercase tracking-widest">{currentMonthYear}</span>
+                      <div className="h-px bg-white/10 flex-1"></div>
+                    </div>
+                  )}
+                  
+                  <div 
+                    ref={isNext ? nextRaceRef : null}
+                    onClick={() => setSelectedRace(race)}
+                    className={`group bg-white/5 backdrop-blur-lg border rounded-2xl p-4 active:scale-[0.98] transition-all flex justify-between items-stretch gap-2 relative cursor-pointer hover:bg-white/10 ${
+                      isNext ? 'border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.2)]' : 'border-white/10 shadow-xl'
+                    }`}
+                    style={{ animation: `fadeIn 0.5s ease-out ${(index % 20) * 0.05}s both` }}
+                  >
+                    {isNext && (
+                      <div className="absolute -top-3 left-4 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-lg">
+                        Скоро
+                      </div>
+                    )}
+                    {/* Левая колонка */}
+                    <div className="flex flex-col items-start gap-3 flex-1">
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase border ${SERIES_INFO[race.series].activeClass}`}>
+                        {SERIES_INFO[race.series].label}
+                      </span>
+                      <div className="mt-1">
+                        <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white/95 leading-tight mb-2">
+                          {race.name}
+                        </h2>
+                        <div className="flex flex-wrap items-center gap-1.5 text-gray-400 text-sm font-medium">
+                          <MapPin size={14} className="text-gray-500 shrink-0" />
+                          <span>{race.circuit}</span>
+                          <span className="text-gray-600 mx-1">•</span>
+                          <span>{race.parsedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Правая колонка: Время */}
+                    <div className="flex pl-4 border-l border-white/10 shrink-0 min-w-[130px] sm:min-w-[150px] items-center">
+                      <div className="flex flex-col items-start justify-center w-full">
+                          <span className="text-sm text-gray-400 font-medium leading-none mb-3 truncate w-full">
+                            {race.country}
+                          </span>
+                          
+                          <div className="w-full flex justify-between items-center gap-2 mb-1.5">
+                            <span className="text-[10px] text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                              Местное
+                            </span>
+                            <span className="text-sm font-bold text-gray-400 whitespace-nowrap">
+                              {race.time}
+                            </span>
+                          </div>
+                          
+                          <div className="w-full flex justify-between items-center gap-2">
+                            <span className="text-[10px] text-indigo-400/80 font-bold uppercase tracking-wide flex items-center gap-1">
+                              Ваше
+                            </span>
+                            <span className="text-sm sm:text-base font-bold text-indigo-300 whitespace-nowrap leading-none">
+                              {race.parsedDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </span>
+                          </div>
+                      </div>
+                    </div>
+                  </div>
+                </React.Fragment>
+              );
+            });
+          })()}
+
+          {filteredRaces.length === 0 && (
+            <div className="text-center text-gray-500 py-16 flex flex-col items-center gap-3">
+              <Trophy size={32} className="text-white/10" />
+              <p>Нет предстоящих гонок</p>
+            </div>
+          )}
+        </main>
+
+        {/* Модальное окно по центру */}
+        {selectedRace && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
+            <div 
+              className="absolute inset-0 bg-black/80 backdrop-blur-md pointer-events-auto transition-opacity" 
+              style={{ animation: 'fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' }} 
+              onClick={() => setSelectedRace(null)}
+            ></div>
             
-            {/* Правая колонка */}
-            <div className="flex pl-4 border-l border-white/10 shrink-0 sm:min-w-[140px] items-center">
-               <div className="flex flex-col items-start justify-center">
-                  <span className="text-sm text-gray-400 font-medium leading-none mb-2">{race.country}</span>
-                  <span className="text-sm sm:text-base font-bold text-white whitespace-nowrap leading-none">
-                    Гонка - <span className="text-indigo-300 font-semibold">{race.time}</span>
-                  </span>
-               </div>
+            <div 
+              className="bg-[#0c0c0e]/95 backdrop-blur-2xl border border-white/10 w-full max-w-lg rounded-3xl p-6 pointer-events-auto relative z-10 shadow-[0_20px_60px_rgba(0,0,0,0.8)] overflow-hidden" 
+              style={{ animation: 'modalScaleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+
+              <button 
+                onClick={() => setSelectedRace(null)} 
+                className="absolute top-5 right-5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="mb-6 pr-8">
+                <span className={`inline-block text-[10px] font-bold px-2.5 py-1 rounded-md uppercase border mb-3 ${SERIES_INFO[selectedRace.series].activeClass}`}>
+                  {SERIES_INFO[selectedRace.series].label}
+                </span>
+                <h2 className="text-2xl font-bold mb-2 text-white">{selectedRace.name}</h2>
+                <div className="text-gray-400 flex flex-wrap items-center gap-2 text-sm">
+                   <MapPin size={15} className="text-gray-500" /> 
+                   <span>{selectedRace.country}, {selectedRace.circuit}</span>
+                   <span className="text-gray-600">•</span>
+                   {selectedRace.parsedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                 <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
+                    <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Ruler size={14}/> Длина круга</div>
+                    <div className="text-base font-bold text-white">{getTrackDetails(selectedRace.circuit).length}</div>
+                 </div>
+                 <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
+                    <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Gauge size={14}/> Рекорд круга</div>
+                    <div className="text-base font-bold text-white">{getTrackDetails(selectedRace.circuit).record}</div>
+                 </div>
+                 <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
+                    <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Navigation size={14}/> Повороты</div>
+                    <div className="text-base font-bold text-white">{getTrackDetails(selectedRace.circuit).corners}</div>
+                 </div>
+                 <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
+                    <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Cloud size={14}/> Прогноз (ожид.)</div>
+                    <div className="text-sm font-bold text-white">{getTrackDetails(selectedRace.circuit).weather}</div>
+                 </div>
+              </div>
+
+              <div className="bg-indigo-950/20 border border-indigo-500/20 rounded-2xl p-4 flex justify-between items-center relative overflow-hidden">
+                 <div>
+                    <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                      <Clock size={12} /> Старт по вашему времени
+                    </div>
+                    <div className="text-2xl font-extrabold text-indigo-200">
+                      {selectedRace.parsedDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </div>
+                 </div>
+                 <div className="text-right z-10">
+                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Местное время</div>
+                    <div className="text-lg font-bold text-gray-400">{selectedRace.time}</div>
+                 </div>
+              </div>
             </div>
           </div>
-        ))}
-
-        {filteredRaces.length === 0 && (
-          <div className="text-center text-gray-500 py-16 flex flex-col items-center gap-3">
-            <Flag size={32} className="text-white/10" />
-            <p>В этом месяце гонок нет</p>
-          </div>
         )}
-      </main>
+
+      </div>
     </div>
   );
 }
