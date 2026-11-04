@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trophy, Calendar as CalendarIcon, MapPin, Globe, Clock, AlertCircle, RefreshCw } from 'lucide-react';
 
 const SUPABASE_URL = "https://qugdovsytjqjawsesdix.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_DrPG1dGhbIWU2EARd9v88g_X3c_pPvX";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1Z2RvdnN5dGpxamF3c2VzZGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE5MTY2MTU4MTksImV4cCI6MjIzMjE5MTgxOX0.aYt_F8z0tT6aF0W1hO2uX8dK9jL3mN4pQ5rS6tU7vW8";
 
 export default function App() {
   const [races, setRaces] = useState([]);
@@ -10,7 +10,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [selectedSeries, setSelectedSeries] = useState('all');
   const [selectedYear, setSelectedYear] = useState('2026');
-  const [showPastRaces, setShowPastRaces] = useState(false); // Переключатель отображения прошедших гонок
+  const [viewMode, setViewMode] = useState('upcoming'); // 'all' или 'upcoming'
 
   const fetchRaces = async () => {
     setLoading(true);
@@ -42,13 +42,12 @@ export default function App() {
   }, []);
 
   const now = new Date();
-  const currentYearNumber = now.getFullYear().toString();
 
   const filteredRaces = races.filter(race => {
     const raceDate = new Date(race.date);
     const raceYear = raceDate.getFullYear().toString();
 
-    // Фильтр по выбранному году
+    // Фильтр по году
     if (raceYear !== selectedYear) return false;
 
     // Фильтр по серии
@@ -56,8 +55,8 @@ export default function App() {
       return false;
     }
 
-    // Если это текущий год и выключен показ прошедших — скрываем гонки, которые уже прошли
-    if (!showPastRaces && raceYear === currentYearNumber && raceDate < now) {
+    // Фильтр по режиму (все / только предстоящие)
+    if (viewMode === 'upcoming' && raceDate < now) {
       return false;
     }
 
@@ -65,13 +64,14 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-slate-100 font-sans p-4 sm:p-6 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-[#0a0a0c] to-[#121218] text-slate-100 font-sans p-4 sm:p-6 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         
-        {/* Шапка */}
-        <div className="bg-[#121216] border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-red-600 rounded-xl text-white">
+        {/* Шапка с градиентными акцентами */}
+        <div className="bg-[#121216]/90 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-red-600/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="p-3 bg-gradient-to-br from-red-500 to-rose-600 rounded-xl text-white shadow-lg shadow-red-500/25">
               <Trophy className="w-8 h-8" />
             </div>
             <div>
@@ -83,7 +83,7 @@ export default function App() {
           <button 
             onClick={fetchRaces}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 text-sm font-medium rounded-xl transition-colors disabled:opacity-50"
+            className="relative z-10 flex items-center gap-2 px-4 py-2 bg-slate-800/80 hover:bg-slate-700 active:bg-slate-600 text-slate-200 text-sm font-medium rounded-xl transition-all border border-slate-700/50 shadow-md disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Обновить
@@ -91,13 +91,13 @@ export default function App() {
         </div>
 
         {/* Панель фильтров */}
-        <div className="bg-[#121216] border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-lg">
+        <div className="bg-[#121216]/90 backdrop-blur-md border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xl">
           
-          {/* Серии (без полупрозрачных градиентов) */}
+          {/* Серии с градиентным выделением активной кнопки */}
           <div className="flex flex-wrap items-center gap-2">
             {[
-              { id: 'all', label: 'Все' },
-              { id: 'f1', label: 'F1' },
+              { id: 'all', label: 'Все серии' },
+              { id: 'f1', label: 'Formula 1' },
               { id: 'wec', label: 'WEC' },
               { id: 'dtm', label: 'DTM' },
               { id: 'super_gt', label: 'Super GT' }
@@ -107,10 +107,10 @@ export default function App() {
                 <button
                   key={series.id}
                   onClick={() => setSelectedSeries(series.id)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                     isActive 
-                      ? 'bg-red-600 text-white' 
-                      : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-slate-800'
+                      ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg shadow-red-600/25 border border-red-500/30' 
+                      : 'bg-slate-900/80 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-slate-800/80'
                   }`}
                 >
                   {series.label}
@@ -121,7 +121,7 @@ export default function App() {
 
           <hr className="border-slate-800/60" />
 
-          {/* Годы и чекбокс прошедших гонок */}
+          {/* Годы и переключатель режима */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               {['2026', '2027'].map(year => {
@@ -130,10 +130,10 @@ export default function App() {
                   <button
                     key={year}
                     onClick={() => setSelectedYear(year)}
-                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ${
+                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
                       isActive 
-                        ? 'bg-indigo-600 text-white' 
-                        : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-slate-800'
+                        ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg shadow-indigo-600/25 border border-indigo-500/30' 
+                        : 'bg-slate-900/80 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-slate-800/80'
                     }`}
                   >
                     {year}
@@ -142,16 +142,24 @@ export default function App() {
               })}
             </div>
 
-            <button
-              onClick={() => setShowPastRaces(!showPastRaces)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
-                showPastRaces 
-                  ? 'bg-slate-800 text-white border-slate-700' 
-                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
-              }`}
-            >
-              {showPastRaces ? '✓ Показаны прошедшие гонки' : 'Скрыть прошедшие гонки'}
-            </button>
+            <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800/80">
+              <button
+                onClick={() => setViewMode('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  viewMode === 'all' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Все гонки
+              </button>
+              <button
+                onClick={() => setViewMode('upcoming')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  viewMode === 'upcoming' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Только предстоящие
+              </button>
+            </div>
           </div>
 
         </div>
@@ -169,28 +177,36 @@ export default function App() {
             <p className="text-sm text-red-400 max-w-md mx-auto">{error}</p>
           </div>
         ) : filteredRaces.length === 0 ? (
-          <div className="bg-[#121216] border border-slate-800/80 rounded-2xl p-16 text-center space-y-3">
+          <div className="bg-[#121216]/90 backdrop-blur-md border border-slate-800/80 rounded-2xl p-16 text-center space-y-3 shadow-xl">
             <Trophy className="w-12 h-12 text-slate-600 mx-auto" />
-            <h3 className="text-lg font-semibold text-slate-300">Нет предстоящих гонок</h3>
+            <h3 className="text-lg font-semibold text-slate-300">Гонок не найдено</h3>
             <p className="text-sm text-slate-500 max-w-sm mx-auto">
-              По выбранным фильтрам нет актуальных событий или все гонки уже завершились.
+              По выбранным фильтрам нет доступных событий.
             </p>
           </div>
         ) : (
           <div className="space-y-3">
             {filteredRaces.map((race, index) => {
               const raceDate = new Date(race.date);
+              const isPast = raceDate < now;
               
               return (
                 <div 
                   key={race.id || index}
-                  className="bg-[#121216] border border-slate-800/80 rounded-2xl p-5 hover:border-slate-700 transition-all shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4"
+                  className={`bg-[#121216]/90 backdrop-blur-md border rounded-2xl p-5 transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl ${
+                    isPast ? 'border-slate-800/40 opacity-60' : 'border-slate-800/80 hover:border-slate-700/80 hover:shadow-red-950/10'
+                  }`}
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700/50">
+                      <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-slate-800/80 text-slate-300 border border-slate-700/50">
                         {race.series}
                       </span>
+                      {isPast && (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-zinc-800/50 text-zinc-500">
+                          Прошло
+                        </span>
+                      )}
                     </div>
                     <h3 className="text-lg font-bold text-white tracking-wide">{race.name}</h3>
                     <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-1">
@@ -205,7 +221,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 self-start md:self-center bg-slate-900/60 px-4 py-2.5 rounded-xl border border-slate-800/60">
+                  <div className="flex items-center gap-4 self-start md:self-center bg-slate-900/60 px-4 py-2.5 rounded-xl border border-slate-800/60 shadow-inner">
                     <div className="flex items-center gap-2 text-slate-300 text-sm font-medium">
                       <CalendarIcon className="w-4 h-4 text-red-500" />
                       <span>
