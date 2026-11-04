@@ -6,7 +6,7 @@ const SUPABASE_URL = 'https://qugdovsytjqjawsesdix.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_DrPG1dGhbIWU2EARd9v88g_X3c_pPvX';
 
 // Резервный локальный массив на случай отсутствия соединения с БД
-const FALLBACK_RACES = [
+/* const FALLBACK_RACES = [
   // ================= 2026 ГОД =================
   { id: 101, series: 'f1', name: 'Гран-при Бахрейна', date: '2026-03-01T15:00:00Z', circuit: 'Сахир', country: 'Бахрейн', time: '18:00' },
   { id: 102, series: 'wec', name: 'Qatar 1812km', date: '2026-02-28T08:00:00Z', circuit: 'Лусаил', country: 'Катар', time: '11:00' },
@@ -28,7 +28,7 @@ const FALLBACK_RACES = [
   { id: 7, series: 'f1', name: 'Гран-при Монако', date: '2027-06-06T13:00:00Z', circuit: 'Монте-Карло', country: 'Монако', time: '15:00' },
   { id: 8, series: 'f1', name: 'Гран-при Канады', date: '2027-06-20T18:00:00Z', circuit: 'Монреаль', country: 'Канада', time: '14:00' },
   { id: 9, series: 'f1', name: 'Гран-при Великобритании', date: '2027-07-04T14:00:00Z', circuit: 'Сильверстоун', country: 'Великобритания', time: '15:00' }
-].map(race => ({ ...race, parsedDate: new Date(race.date) }));
+].map(race => ({ ...race, parsedDate: new Date(race.date) })); */
 
 const SERIES_INFO = {
   all: { label: 'Все', activeClass: 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]' },
