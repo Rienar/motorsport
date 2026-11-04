@@ -38,6 +38,7 @@ const getTrackDetails = (circuit) => {
 export default function App() {
   const [races, setRaces] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const queryParams = new URLSearchParams(window.location.search);
   const initialSeries = queryParams.get('series') || 'all';
@@ -54,25 +55,37 @@ export default function App() {
   useEffect(() => {
     async function fetchRacesFromSupabase() {
       try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/races?select=*`, {
+        setLoading(true);
+        // Запрос к таблице races упорядоченный по дате
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/races?select=*&order=date.asc`, {
           headers: {
             'apikey': SUPABASE_ANON_KEY,
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
           }
         });
+        
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(`Ошибка HTTP: ${response.status}`);
         }
+        
         const data = await response.json();
-        if (data && Array.isArray(data) && data.length > 0) {
-          const formatted = data.map(r => ({
-            ...r,
+        
+        if (data && Array.isArray(data)) {
+          const formatted = data.map((r, index) => ({
+            id: r.id || index + 1,
+            series: r.series ? r.series.toLowerCase().trim() : 'f1',
+            name: r.name || 'Гонка',
+            circuit: r.circuit || 'Трасса',
+            country: r.country || '',
+            time: r.time || '14:00',
+            date: r.date,
             parsedDate: new Date(r.date)
           }));
           setRaces(formatted);
         }
       } catch (err) {
-        console.warn('Ошибка запроса к Supabase:', err.message);
+        console.error('Ошибка загрузки из Supabase:', err);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -80,15 +93,15 @@ export default function App() {
     fetchRacesFromSupabase();
   }, []);
 
+  // Поиск ближайшей будущей гонки от текущего момента времени
   const nextRace = useMemo(() => {
     if (!races || races.length === 0) return null;
     const now = new Date();
-    const upcoming = races.filter(r => r.parsedDate && r.parsedDate > now).sort((a, b) => a.parsedDate - b.parsedDate);
+    const upcoming = races.filter(r => r.parsedDate && !isNaN(r.parsedDate) && r.parsedDate > now);
     return upcoming.length > 0 ? upcoming[0] : null;
   }, [races]);
 
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
-
+  // Синхронизация фильтров с URL строкой браузера
   useEffect(() => {
     const params = new URLSearchParams();
     if (activeSeries !== 'all') params.set('series', activeSeries);
@@ -100,6 +113,7 @@ export default function App() {
     window.history.replaceState({}, '', newUrl);
   }, [activeSeries, activeYear, activeMonth]);
 
+  // Определение десктопного режима для адаптивного виджета
   useEffect(() => {
     const checkDevice = () => {
       const userAgent = navigator.userAgent || navigator.vendor || window.opera;
@@ -113,7 +127,7 @@ export default function App() {
     return () => window.removeEventListener('resize', checkDevice);
   }, []);
 
-  const nextRaceRef = React.useRef(null);
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
 
   useEffect(() => {
     if (!nextRace) return;
@@ -134,16 +148,18 @@ export default function App() {
     return () => clearInterval(interval);
   }, [nextRace]);
 
+  // Фильтрация гонок по выбранным кнопкам
   const filteredRaces = useMemo(() => {
-    if (!races) return [];
+    if (!races || races.length === 0) return [];
     return races.filter(r => {
-      if (!r.parsedDate) return false;
+      if (!r.parsedDate || isNaN(r.parsedDate)) return false;
+      
       const matchSeries = activeSeries === 'all' || r.series === activeSeries;
       const matchYear = r.parsedDate.getFullYear().toString() === activeYear;
       const matchMonth = activeMonth === 'all' || (r.parsedDate.getMonth() + 1).toString() === activeMonth;
       
       return matchSeries && matchYear && matchMonth;
-    }).sort((a, b) => a.parsedDate - b.parsedDate);
+    });
   }, [races, activeSeries, activeYear, activeMonth]);
 
   return (
@@ -207,11 +223,17 @@ export default function App() {
           {loading && (
             <div className="text-center text-gray-500 py-16 flex flex-col items-center gap-3">
               <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-sm">Загрузка календаря...</p>
+              <p className="text-sm">Загрузка гонок из базы данных...</p>
             </div>
           )}
 
-          {!loading && nextRace && (
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 text-center text-red-400 text-sm">
+              Не удалось загрузить данные: {error}
+            </div>
+          )}
+
+          {!loading && !error && nextRace && activeYear === new Date().getFullYear().toString() && (
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center">
               <Timer className="absolute -right-6 -bottom-6 w-40 h-40 text-white/5 pointer-events-none" />
               
@@ -250,14 +272,13 @@ export default function App() {
             </div>
           )}
 
-          {!loading && filteredRaces.map((race) => {
+          {!loading && !error && filteredRaces.map((race) => {
             const isNext = nextRace && nextRace.id === race.id;
             const seriesCfg = SERIES_INFO[race.series] || { label: race.series, activeClass: 'bg-white/20 text-white' };
 
             return (
               <div 
                 key={race.id} 
-                ref={isNext ? nextRaceRef : null}
                 onClick={() => setSelectedRace(race)}
                 className={`group bg-white/5 backdrop-blur-lg border rounded-2xl p-4 active:scale-[0.98] transition-all flex justify-between items-stretch gap-2 relative cursor-pointer hover:bg-white/10 ${
                   isNext ? 'border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.2)]' : 'border-white/10 shadow-xl'
@@ -308,7 +329,7 @@ export default function App() {
             );
           })}
 
-          {!loading && filteredRaces.length === 0 && (
+          {!loading && !error && filteredRaces.length === 0 && (
             <div className="text-center text-gray-500 py-16 flex flex-col items-center gap-3">
               <Trophy size={32} className="text-white/10" />
               <p>Нет гонок для выбранного фильтра</p>
