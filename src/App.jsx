@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, MapPin, Clock, Timer, X, Gauge, Ruler, Cloud, Navigation, Trophy } from 'lucide-react';
 
-const RACES = [
+// Настройки подключения к Supabase через REST API (без сторонних npm-пакетов)
+const SUPABASE_URL = 'https://qugdovsytjqjawsesdix.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_DrPG1dGhbIWU2EARd9v88g_X3c_pPvX';
+
+// Резервный локальный массив на случай отсутствия соединения с БД
+const FALLBACK_RACES = [
   // ================= 2026 ГОД =================
   { id: 101, series: 'f1', name: 'Гран-при Бахрейна', date: '2026-03-01T15:00:00Z', circuit: 'Сахир', country: 'Бахрейн', time: '18:00' },
   { id: 102, series: 'wec', name: 'Qatar 1812km', date: '2026-02-28T08:00:00Z', circuit: 'Лусаил', country: 'Катар', time: '11:00' },
@@ -53,22 +58,70 @@ const getTrackDetails = (circuit) => {
   };
 };
 
-const INITIAL_NEXT_RACE = (() => {
-  const now = new Date();
-  const upcoming = RACES.filter(r => r.parsedDate > now).sort((a, b) => a.parsedDate - b.parsedDate);
-  return upcoming.length > 0 ? upcoming[0] : null;
-})();
-
 export default function App() {
-  const [activeSeries, setActiveSeries] = useState('all');
-  const [activeYear, setActiveYear] = useState(INITIAL_NEXT_RACE ? INITIAL_NEXT_RACE.parsedDate.getFullYear().toString() : '2026');
-  const [activeMonth, setActiveMonth] = useState('all');
+  const [races, setRaces] = useState(FALLBACK_RACES);
+  const [loading, setLoading] = useState(true);
+
+  const queryParams = new URLSearchParams(window.location.search);
+  const initialSeries = queryParams.get('series') || 'all';
+  const initialYear = queryParams.get('year') || '2026';
+  const initialMonth = queryParams.get('month') || 'all';
+
+  const [activeSeries, setActiveSeries] = useState(initialSeries);
+  const [activeYear, setActiveYear] = useState(initialYear);
+  const [activeMonth, setActiveMonth] = useState(initialMonth);
   
-  const [nextRace, setNextRace] = useState(INITIAL_NEXT_RACE);
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
   const [selectedRace, setSelectedRace] = useState(null);
-  
   const [isDesktop, setIsDesktop] = useState(false);
+
+  // Загрузка гонок через Supabase REST API с fallback на локальные данные
+  useEffect(() => {
+    async function fetchRacesFromSupabase() {
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/races?select=*`, {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data && data.length > 0) {
+          const formatted = data.map(r => ({
+            ...r,
+            parsedDate: new Date(r.date)
+          }));
+          setRaces(formatted);
+        }
+      } catch (err) {
+        console.warn('Используются резервные данные (ошибка запроса к Supabase):', err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchRacesFromSupabase();
+  }, []);
+
+  const nextRace = useMemo(() => {
+    const now = new Date();
+    const upcoming = races.filter(r => r.parsedDate > now).sort((a, b) => a.parsedDate - b.parsedDate);
+    return upcoming.length > 0 ? upcoming[0] : null;
+  }, [races]);
+
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (activeSeries !== 'all') params.set('series', activeSeries);
+    if (activeYear) params.set('year', activeYear);
+    if (activeMonth !== 'all') params.set('month', activeMonth);
+
+    const newQueryString = params.toString();
+    const newUrl = `${window.location.pathname}${newQueryString ? `?${newQueryString}` : ''}`;
+    window.history.replaceState({}, '', newUrl);
+  }, [activeSeries, activeYear, activeMonth]);
 
   useEffect(() => {
     const checkDevice = () => {
@@ -110,11 +163,11 @@ export default function App() {
         nextRaceRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 500);
     }
-  }, []);
+  }, [loading]);
 
   const filteredRaces = useMemo(() => {
     const now = new Date();
-    return RACES.filter(r => {
+    return races.filter(r => {
       const matchSeries = activeSeries === 'all' || r.series === activeSeries;
       const matchYear = r.parsedDate.getFullYear().toString() === activeYear;
       const matchMonth = activeMonth === 'all' || (r.parsedDate.getMonth() + 1).toString() === activeMonth;
@@ -124,7 +177,7 @@ export default function App() {
 
       return matchSeries && matchYear && matchMonth && notPassed;
     }).sort((a, b) => a.parsedDate - b.parsedDate);
-  }, [activeSeries, activeYear, activeMonth]);
+  }, [races, activeSeries, activeYear, activeMonth]);
 
   return (
     <div className={`min-h-screen bg-black text-white font-sans selection:bg-red-500 pb-10 flex justify-center ${isDesktop ? 'items-center bg-[#050505] py-8' : ''}`} style={{ animation: 'appEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
@@ -143,7 +196,6 @@ export default function App() {
         }
       `}</style>
 
-      {/* Обертка для десктопа */}
       <div className={`w-full ${isDesktop ? 'max-w-xl mx-auto rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden bg-black min-h-[90vh]' : 'max-w-full'}`}>
         
         <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10 p-4 pt-8 shadow-2xl">
@@ -154,7 +206,6 @@ export default function App() {
             Motorsport Tracker
           </h1>
           
-          {/* Фильтр серий */}
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {Object.entries(SERIES_INFO).map(([key, info]) => (
               <button
@@ -171,7 +222,6 @@ export default function App() {
             ))}
           </div>
 
-          {/* Фильтр года и месяца */}
           <div className="flex gap-2 mt-2 items-center">
             {YEARS.map(year => (
               <button
@@ -208,15 +258,14 @@ export default function App() {
         </header>
 
         <main className="p-4 space-y-4">
-          {/* Редизайн баннера обратного отсчета в стиле общего дизайна */}
           {nextRace && (
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center">
               <Timer className="absolute -right-6 -bottom-6 w-40 h-40 text-white/5 pointer-events-none" />
               
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-3">
-                   <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${SERIES_INFO[nextRace.series].activeClass}`}>
-                      {SERIES_INFO[nextRace.series].label}
+                   <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${SERIES_INFO[nextRace.series]?.activeClass || 'bg-white/20 text-white'}`}>
+                      {SERIES_INFO[nextRace.series]?.label || nextRace.series}
                    </span>
                    <div className="text-xs text-indigo-300 font-semibold uppercase tracking-wider flex items-center gap-1.5">
                      Ближайший этап
@@ -257,6 +306,8 @@ export default function App() {
               const isNewMonth = lastMonthYear !== currentMonthYear;
               lastMonthYear = currentMonthYear;
 
+              const seriesCfg = SERIES_INFO[race.series] || { label: race.series, activeClass: 'bg-white/20 text-white' };
+
               return (
                 <React.Fragment key={race.id}>
                   {isNewMonth && (
@@ -280,10 +331,9 @@ export default function App() {
                         Скоро
                       </div>
                     )}
-                    {/* Левая колонка */}
                     <div className="flex flex-col items-start gap-3 flex-1">
-                      <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase border ${SERIES_INFO[race.series].activeClass}`}>
-                        {SERIES_INFO[race.series].label}
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase border ${seriesCfg.activeClass}`}>
+                        {seriesCfg.label}
                       </span>
                       <div className="mt-1">
                         <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white/95 leading-tight mb-2">
@@ -298,7 +348,6 @@ export default function App() {
                       </div>
                     </div>
                     
-                    {/* Правая колонка: Время */}
                     <div className="flex pl-4 border-l border-white/10 shrink-0 min-w-[130px] sm:min-w-[150px] items-center">
                       <div className="flex flex-col items-start justify-center w-full">
                           <span className="text-sm text-gray-400 font-medium leading-none mb-3 truncate w-full">
@@ -330,7 +379,7 @@ export default function App() {
             });
           })()}
 
-          {filteredRaces.length === 0 && (
+          {filteredRaces.length === 0 && !loading && (
             <div className="text-center text-gray-500 py-16 flex flex-col items-center gap-3">
               <Trophy size={32} className="text-white/10" />
               <p>Нет предстоящих гонок</p>
@@ -338,7 +387,6 @@ export default function App() {
           )}
         </main>
 
-        {/* Модальное окно по центру */}
         {selectedRace && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
             <div 
@@ -361,8 +409,8 @@ export default function App() {
               </button>
 
               <div className="mb-6 pr-8">
-                <span className={`inline-block text-[10px] font-bold px-2.5 py-1 rounded-md uppercase border mb-3 ${SERIES_INFO[selectedRace.series].activeClass}`}>
-                  {SERIES_INFO[selectedRace.series].label}
+                <span className={`inline-block text-[10px] font-bold px-2.5 py-1 rounded-md uppercase border mb-3 ${SERIES_INFO[selectedRace.series]?.activeClass || 'bg-white/20 text-white'}`}>
+                  {SERIES_INFO[selectedRace.series]?.label || selectedRace.series}
                 </span>
                 <h2 className="text-2xl font-bold mb-2 text-white">{selectedRace.name}</h2>
                 <div className="text-gray-400 flex flex-wrap items-center gap-2 text-sm">
