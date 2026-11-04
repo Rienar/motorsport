@@ -2,10 +2,63 @@ import React, { useState } from 'react';
 import { Calendar, MapPin, Flag } from 'lucide-react';
 
 const RACES = [
+  // ================= FORMULA 1 (24 этапа) =================
   { id: 1, series: 'f1', name: 'Гран-при Бахрейна', date: '2027-03-14', circuit: 'Сахир' },
-  { id: 2, series: 'wec', name: 'Qatar 1812km', date: '2027-03-27', circuit: 'Лусаил' },
-  { id: 3, series: 'dtm', name: 'Red Bull Ring', date: '2027-04-25', circuit: 'Шпильберг' },
-  { id: 4, series: 'super_gt', name: 'Okayama GT 300km', date: '2027-04-18', circuit: 'Окаяма' },
+  { id: 2, series: 'f1', name: 'Гран-при Саудовской Аравии', date: '2027-03-21', circuit: 'Джидда' },
+  { id: 3, series: 'f1', name: 'Гран-при Австралии', date: '2027-04-04', circuit: 'Альберт-Парк' },
+  { id: 4, series: 'f1', name: 'Гран-при Японии', date: '2027-04-11', circuit: 'Сузука' },
+  { id: 5, series: 'f1', name: 'Гран-при Китая', date: '2027-04-18', circuit: 'Шанхай' },
+  { id: 6, series: 'f1', name: 'Гран-при Майами', date: '2027-05-02', circuit: 'Майами' },
+  { id: 7, series: 'f1', name: 'Гран-при Канады', date: '2027-05-23', circuit: 'Монреаль' },
+  { id: 8, series: 'f1', name: 'Гран-при Монако', date: '2027-06-06', circuit: 'Монте-Карло' },
+  { id: 9, series: 'f1', name: 'Гран-при Португалии', date: '2027-06-20', circuit: 'Портиман' },
+  { id: 10, series: 'f1', name: 'Гран-при Великобритании', date: '2027-07-04', circuit: 'Сильверстоун' },
+  { id: 11, series: 'f1', name: 'Гран-при Австрии', date: '2027-07-11', circuit: 'Шпильберг' },
+  { id: 12, series: 'f1', name: 'Гран-при Бельгии', date: '2027-07-25', circuit: 'Спа-Франкоршам' },
+  { id: 13, series: 'f1', name: 'Гран-при Венгрии', date: '2027-08-01', circuit: 'Хунгароринг' },
+  { id: 14, series: 'f1', name: 'Гран-при Италии', date: '2027-09-05', circuit: 'Монца' },
+  { id: 15, series: 'f1', name: 'Гран-при Испании', date: '2027-09-12', circuit: 'Мадрид' },
+  { id: 16, series: 'f1', name: 'Гран-при Азербайджана', date: '2027-09-26', circuit: 'Баку' },
+  { id: 17, series: 'f1', name: 'Гран-при Турции', date: '2027-10-03', circuit: 'Истанбул Парк' },
+  { id: 18, series: 'f1', name: 'Гран-при Сингапура', date: '2027-10-10', circuit: 'Марина Бэй' },
+  { id: 19, series: 'f1', name: 'Гран-при США', date: '2027-10-24', circuit: 'Остин' },
+  { id: 20, series: 'f1', name: 'Гран-при Мехико', date: '2027-10-31', circuit: 'Мехико' },
+  { id: 21, series: 'f1', name: 'Гран-при Сан-Паулу', date: '2027-11-07', circuit: 'Интерлагос' },
+  { id: 22, series: 'f1', name: 'Гран-при Лас-Вегаса', date: '2027-11-20', circuit: 'Лас-Вегас' },
+  { id: 23, series: 'f1', name: 'Гран-при Катара', date: '2027-12-05', circuit: 'Лусаил' },
+  { id: 24, series: 'f1', name: 'Гран-при Абу-Даби', date: '2027-12-12', circuit: 'Яс Марина' },
+
+  // ================= FIA WEC (9 этапов) =================
+  { id: 25, series: 'wec', name: 'Qatar 1812km', date: '2027-03-27', circuit: 'Лусаил' },
+  { id: 26, series: 'wec', name: 'Imola 6 Hours', date: '2027-04-11', circuit: 'Имола' },
+  { id: 27, series: 'wec', name: 'Silverstone 6 Hours', date: '2027-04-25', circuit: 'Сильверстоун' },
+  { id: 28, series: 'wec', name: 'Spa 6 Hours', date: '2027-05-15', circuit: 'Спа-Франкоршам' },
+  { id: 29, series: 'wec', name: 'Le Mans 24 Hours', date: '2027-06-13', circuit: 'Сарта' },
+  { id: 30, series: 'wec', name: '6 Hours of São Paulo', date: '2027-07-11', circuit: 'Интерлагос' },
+  { id: 31, series: 'wec', name: 'Lone Star Le Mans', date: '2027-09-12', circuit: 'Остин (COTA)' },
+  { id: 32, series: 'wec', name: '6 Hours of Fuji', date: '2027-09-26', circuit: 'Фудзи' },
+  { id: 33, series: 'wec', name: '8 Hours of Bahrain', date: '2027-11-06', circuit: 'Бахрейн' },
+
+  // ================= DTM (8 этапов) =================
+  { id: 34, series: 'dtm', name: 'Red Bull Ring', date: '2027-04-25', circuit: 'Шпильберг' },
+  { id: 35, series: 'dtm', name: 'Motorsport Arena', date: '2027-05-09', circuit: 'Ошерслебен' },
+  { id: 36, series: 'dtm', name: 'Lausitzring', date: '2027-06-20', circuit: 'Лаузицринг' },
+  { id: 37, series: 'dtm', name: 'Norisring', date: '2027-07-04', circuit: 'Нюрнберг' },
+  { id: 38, series: 'dtm', name: 'Circuit Zandvoort', date: '2027-08-08', circuit: 'Зандворт' },
+  { id: 39, series: 'dtm', name: 'Nürburgring', date: '2027-08-22', circuit: 'Нюрбургринг' },
+  { id: 40, series: 'dtm', name: 'Sachsenring', date: '2027-09-26', circuit: 'Заксенринг' },
+  { id: 41, series: 'dtm', name: 'Hockenheimring', date: '2027-10-10', circuit: 'Хоккенхайм' },
+
+  // ================= SUPER GT (9 этапов) =================
+  { id: 42, series: 'super_gt', name: 'Okayama GT', date: '2027-04-04', circuit: 'Окаяма' },
+  { id: 43, series: 'super_gt', name: 'Fuji GT 1', date: '2027-05-04', circuit: 'Фудзи' },
+  { id: 44, series: 'super_gt', name: 'Sepang GT', date: '2027-06-19', circuit: 'Сепанг' },
+  { id: 45, series: 'super_gt', name: 'Suzuka GT 1', date: '2027-08-01', circuit: 'Сузука' },
+  { id: 46, series: 'super_gt', name: '1000 km of Suzuka', date: '2027-09-05', circuit: 'Сузука (GT300 Special)' },
+  { id: 47, series: 'super_gt', name: 'Sugo GT', date: '2027-09-19', circuit: 'Суго' },
+  { id: 48, series: 'super_gt', name: 'Autopolis GT', date: '2027-10-17', circuit: 'Автополис' },
+  { id: 49, series: 'super_gt', name: 'Fuji GT 2', date: '2027-11-07', circuit: 'Фудзи' },
+  { id: 50, series: 'super_gt', name: 'Motegi GT', date: '2027-11-21', circuit: 'Мотеги' },
 ];
 
 const SERIES_INFO = {
