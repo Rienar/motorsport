@@ -136,17 +136,13 @@ export default function App() {
 
   const filteredRaces = useMemo(() => {
     if (!races) return [];
-    const now = new Date();
     return races.filter(r => {
       if (!r.parsedDate) return false;
       const matchSeries = activeSeries === 'all' || r.series === activeSeries;
       const matchYear = r.parsedDate.getFullYear().toString() === activeYear;
       const matchMonth = activeMonth === 'all' || (r.parsedDate.getMonth() + 1).toString() === activeMonth;
       
-      const isCurrentYear = activeYear === now.getFullYear().toString();
-      const notPassed = !isCurrentYear || r.parsedDate >= now;
-
-      return matchSeries && matchYear && matchMonth && notPassed;
+      return matchSeries && matchYear && matchMonth;
     }).sort((a, b) => a.parsedDate - b.parsedDate);
   }, [races, activeSeries, activeYear, activeMonth]);
 
@@ -315,7 +311,7 @@ export default function App() {
           {!loading && filteredRaces.length === 0 && (
             <div className="text-center text-gray-500 py-16 flex flex-col items-center gap-3">
               <Trophy size={32} className="text-white/10" />
-              <p>Нет предстоящих гонок</p>
+              <p>Нет гонок для выбранного фильтра</p>
             </div>
           )}
         </main>
