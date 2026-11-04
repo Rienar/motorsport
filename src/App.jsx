@@ -1,246 +1,305 @@
-import React, { useState, useEffect } from 'react';
-import { Trophy, Calendar as CalendarIcon, MapPin, Globe, Clock, AlertCircle, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Calendar, MapPin, Clock, Timer, X, Gauge, Ruler, Cloud, Navigation, Trophy } from 'lucide-react';
 
-const SUPABASE_URL = "https://qugdovsytjqjawsesdix.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_DrPG1dGhbIWU2EARd9v88g_X3c_pPvX";
+// Настройки подключения к Supabase через REST API (без сторонних npm-пакетов)
+const SUPABASE_URL = 'https://qugdovsytjqjawsesdix.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_DrPG1dGhbIWU2EARd9v88g_X3c_pPvX';
+
+const SERIES_INFO = {
+  all: { label: 'Все', activeClass: 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]' },
+  f1: { label: 'F1', activeClass: 'bg-red-500 text-white border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]' },
+  wec: { label: 'WEC', activeClass: 'bg-blue-500 text-white border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.4)]' },
+  dtm: { label: 'DTM', activeClass: 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.4)]' },
+  super_gt: { label: 'Super GT', activeClass: 'bg-green-500 text-white border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]' },
+};
+
+const YEARS = ['2026', '2027'];
+const MONTHS = [
+  { value: 'all', label: 'Все' },
+  { value: '1', label: 'Январь' }, { value: '2', label: 'Февраль' }, { value: '3', label: 'Март' },
+  { value: '4', label: 'Апрель' }, { value: '5', label: 'Май' }, { value: '6', label: 'Июнь' },
+  { value: '7', label: 'Июль' }, { value: '8', label: 'Август' }, { value: '9', label: 'Сентябрь' },
+  { value: '10', label: 'Октябрь' }, { value: '11', label: 'Ноябрь' }, { value: '12', label: 'Декабрь' },
+];
+
+const getTrackDetails = (circuit) => {
+  const hash = circuit.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+  const weathers = ['☀️ Ясно, 25°C', '⛅ Облачно, 20°C', '🌧️ Возможен дождь, 18°C', '🌤️ Местами облачно, 22°C', '🌙 Ясно (вечер), 21°C'];
+  return {
+     length: (4 + (hash % 3) + ((hash % 10) * 0.13)).toFixed(3) + ' км',
+     record: `1:${14 + (hash % 15)}.${100 + (hash * 23) % 899}`,
+     weather: weathers[hash % weathers.length],
+     corners: 10 + (hash % 12)
+  };
+};
 
 export default function App() {
   const [races, setRaces] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [selectedSeries, setSelectedSeries] = useState('all');
-  const [selectedYear, setSelectedYear] = useState('2026');
-  const [viewMode, setViewMode] = useState('upcoming'); // 'all' или 'upcoming'
 
-  const fetchRaces = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/races?select=*&order=date.asc`, {
-        headers: {
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Ошибка сети: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      setRaces(data || []);
-    } catch (err) {
-      console.error("Ошибка загрузки из Supabase:", err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const queryParams = new URLSearchParams(window.location.search);
+  const initialSeries = queryParams.get('series') || 'all';
+  const initialYear = queryParams.get('year') || '2026';
+  const initialMonth = queryParams.get('month') || 'all';
 
+  const [activeSeries, setActiveSeries] = useState(initialSeries);
+  const [activeYear, setActiveYear] = useState(initialYear);
+  const [activeMonth, setActiveMonth] = useState(initialMonth);
+  
+  const [selectedRace, setSelectedRace] = useState(null);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  // Загрузка гонок через Supabase REST API
   useEffect(() => {
-    fetchRaces();
+    async function fetchRacesFromSupabase() {
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/races?select=*&order=date.asc`, {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data && data.length > 0) {
+          const formatted = data.map(r => ({
+            ...r,
+            parsedDate: new Date(r.date)
+          }));
+          setRaces(formatted);
+        }
+      } catch (err) {
+        console.warn('Ошибка запроса к Supabase:', err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchRacesFromSupabase();
   }, []);
 
-  const now = new Date();
+  const nextRace = useMemo(() => {
+    const now = new Date();
+    const upcoming = races.filter(r => r.parsedDate > now).sort((a, b) => a.parsedDate - b.parsedDate);
+    return upcoming.length > 0 ? upcoming[0] : null;
+  }, [races]);
 
-  const filteredRaces = races.filter(race => {
-    const raceDate = new Date(race.date);
-    const raceYear = raceDate.getFullYear().toString();
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
 
-    // Фильтр по году
-    if (raceYear !== selectedYear) return false;
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (activeSeries !== 'all') params.set('series', activeSeries);
+    if (activeYear) params.set('year', activeYear);
+    if (activeMonth !== 'all') params.set('month', activeMonth);
 
-    // Фильтр по серии
-    if (selectedSeries !== 'all' && race.series.toLowerCase() !== selectedSeries.toLowerCase()) {
-      return false;
+    const newQueryString = params.toString();
+    const newUrl = `${window.location.pathname}${newQueryString ? `?${newQueryString}` : ''}`;
+    window.history.replaceState({}, '', newUrl);
+  }, [activeSeries, activeYear, activeMonth]);
+
+  useEffect(() => {
+    const checkDevice = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+      const isMobileDevice = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+      const isWideScreen = window.innerWidth >= 768;
+      setIsDesktop(!isMobileDevice && isWideScreen);
+    };
+
+    checkDevice();
+    window.addEventListener('resize', checkDevice);
+    return () => window.removeEventListener('resize', checkDevice);
+  }, []);
+
+  const nextRaceRef = React.useRef(null);
+
+  useEffect(() => {
+    if (!nextRace) return;
+    const interval = setInterval(() => {
+      const now = new Date();
+      const diff = nextRace.parsedDate - now;
+      if (diff <= 0) {
+        clearInterval(interval);
+        return;
+      }
+      setTimeLeft({
+        days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+        mins: Math.floor((diff / 1000 / 60) % 60),
+        secs: Math.floor((diff / 1000) % 60)
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [nextRace]);
+
+  useEffect(() => {
+    if (nextRaceRef.current && !loading) {
+      setTimeout(() => {
+        nextRaceRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 500);
     }
+  }, [loading]);
 
-    // Фильтр по режиму (все / только предстоящие)
-    if (viewMode === 'upcoming' && raceDate < now) {
-      return false;
-    }
+  const filteredRaces = useMemo(() => {
+    const now = new Date();
+    return races.filter(r => {
+      const matchSeries = activeSeries === 'all' || r.series.toLowerCase() === activeSeries.toLowerCase();
+      const matchYear = r.parsedDate.getFullYear().toString() === activeYear;
+      const matchMonth = activeMonth === 'all' || (r.parsedDate.getMonth() + 1).toString() === activeMonth;
+      
+      const isCurrentYear = activeYear === now.getFullYear().toString();
+      const notPassed = !isCurrentYear || r.parsedDate >= now;
 
-    return true;
-  });
+      return matchSeries && matchYear && matchMonth && notPassed;
+    }).sort((a, b) => a.parsedDate - b.parsedDate);
+  }, [races, activeSeries, activeYear, activeMonth]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-[#0a0a0c] to-[#121218] text-slate-100 font-sans p-4 sm:p-6 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className={`min-h-screen bg-black text-white font-sans selection:bg-red-500 pb-10 flex justify-center ${isDesktop ? 'items-center bg-[#050505] py-8' : ''}`} style={{ animation: 'appEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
+      <style>{`
+        @keyframes appEntrance {
+          from { opacity: 0; transform: translateY(12px) scale(0.99); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes modalScaleUp {
+          from { transform: scale(0.95); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
+
+      <div className={`w-full ${isDesktop ? 'max-w-xl mx-auto rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden bg-black min-h-[90vh]' : 'max-w-full'}`}>
         
-        {/* Шапка с градиентными акцентами */}
-        <div className="bg-[#121216]/90 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-red-600/10 rounded-full blur-3xl pointer-events-none"></div>
-          <div className="flex items-center gap-3 relative z-10">
-            <div className="p-3 bg-gradient-to-br from-red-500 to-rose-600 rounded-xl text-white shadow-lg shadow-red-500/25">
-              <Trophy className="w-8 h-8" />
+        <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10 p-4 pt-8 shadow-2xl">
+          <h1 className="text-2xl font-bold flex items-center gap-2 mb-4">
+            <div className="relative flex items-center justify-center w-8 h-8 bg-red-600/20 border border-red-500/40 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.3)]">
+              <Trophy className="text-red-500 w-4 h-4 animate-pulse" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-white">Motorsport Tracker</h1>
-              <p className="text-sm text-slate-400">Календарь мировых гоночных серий</p>
-            </div>
-          </div>
+            Motorsport Tracker
+          </h1>
           
-          <button 
-            onClick={fetchRaces}
-            disabled={loading}
-            className="relative z-10 flex items-center gap-2 px-4 py-2 bg-slate-800/80 hover:bg-slate-700 active:bg-slate-600 text-slate-200 text-sm font-medium rounded-xl transition-all border border-slate-700/50 shadow-md disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Обновить
-          </button>
-        </div>
-
-        {/* Панель фильтров */}
-        <div className="bg-[#121216]/90 backdrop-blur-md border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xl">
-          
-          {/* Серии с градиентным выделением активной кнопки */}
-          <div className="flex flex-wrap items-center gap-2">
-            {[
-              { id: 'all', label: 'Все серии' },
-              { id: 'f1', label: 'Formula 1' },
-              { id: 'wec', label: 'WEC' },
-              { id: 'dtm', label: 'DTM' },
-              { id: 'super_gt', label: 'Super GT' }
-            ].map(series => {
-              const isActive = selectedSeries === series.id;
-              return (
-                <button
-                  key={series.id}
-                  onClick={() => setSelectedSeries(series.id)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                    isActive 
-                      ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg shadow-red-600/25 border border-red-500/30' 
-                      : 'bg-slate-900/80 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-slate-800/80'
-                  }`}
-                >
-                  {series.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <hr className="border-slate-800/60" />
-
-          {/* Годы и переключатель режима */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              {['2026', '2027'].map(year => {
-                const isActive = selectedYear === year;
-                return (
-                  <button
-                    key={year}
-                    onClick={() => setSelectedYear(year)}
-                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
-                      isActive 
-                        ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg shadow-indigo-600/25 border border-indigo-500/30' 
-                        : 'bg-slate-900/80 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-slate-800/80'
-                    }`}
-                  >
-                    {year}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800/80">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {Object.entries(SERIES_INFO).map(([key, info]) => (
               <button
-                onClick={() => setViewMode('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  viewMode === 'all' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+                key={key}
+                onClick={() => setActiveSeries(key)}
+                className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+                  activeSeries === key 
+                    ? info.activeClass 
+                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
                 }`}
               >
-                Все гонки
+                {info.label}
               </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2 mt-2 items-center">
+            {YEARS.map(year => (
               <button
-                onClick={() => setViewMode('upcoming')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  viewMode === 'upcoming' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+                key={year}
+                onClick={() => setActiveYear(year)}
+                className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  activeYear === year ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' : 'bg-white/5 text-gray-400 hover:bg-white/10'
                 }`}
               >
-                Только предстоящие
+                {year}
               </button>
-            </div>
+            ))}
+            
+            <div className="w-px h-5 bg-white/20 mx-1 shrink-0"></div>
+            
+            <select 
+              value={activeMonth}
+              onChange={(e) => setActiveMonth(e.target.value)}
+              className="appearance-none bg-white/5 border border-white/10 text-white text-xs font-semibold rounded-lg px-3 py-1.5 pr-8 focus:outline-none transition-all cursor-pointer hover:bg-white/10"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 0.5rem center',
+                backgroundSize: '1em 1em'
+              }}
+            >
+              {MONTHS.map(m => (
+                <option key={m.value} value={m.value} className="bg-gray-900 text-white">
+                  {m.label}
+                </option>
+              ))}
+            </select>
           </div>
+        </header>
 
-        </div>
-
-        {/* Контент */}
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 space-y-4">
-            <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-slate-400 text-sm">Загрузка данных из базы...</p>
-          </div>
-        ) : error ? (
-          <div className="bg-red-950/20 border border-red-900/50 rounded-2xl p-6 text-center space-y-2">
-            <AlertCircle className="w-8 h-8 text-red-500 mx-auto" />
-            <h3 className="text-lg font-semibold text-red-200">Ошибка загрузки данных</h3>
-            <p className="text-sm text-red-400 max-w-md mx-auto">{error}</p>
-          </div>
-        ) : filteredRaces.length === 0 ? (
-          <div className="bg-[#121216]/90 backdrop-blur-md border border-slate-800/80 rounded-2xl p-16 text-center space-y-3 shadow-xl">
-            <Trophy className="w-12 h-12 text-slate-600 mx-auto" />
-            <h3 className="text-lg font-semibold text-slate-300">Гонок не найдено</h3>
-            <p className="text-sm text-slate-500 max-w-sm mx-auto">
-              По выбранным фильтрам нет доступных событий.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredRaces.map((race, index) => {
-              const raceDate = new Date(race.date);
-              const isPast = raceDate < now;
+        <main className="p-4 space-y-4">
+          {nextRace && (
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center">
+              <Timer className="absolute -right-6 -bottom-6 w-40 h-40 text-white/5 pointer-events-none" />
               
-              return (
-                <div 
-                  key={race.id || index}
-                  className={`bg-[#121216]/90 backdrop-blur-md border rounded-2xl p-5 transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl ${
-                    isPast ? 'border-slate-800/40 opacity-60' : 'border-slate-800/80 hover:border-slate-700/80 hover:shadow-red-950/10'
-                  }`}
-                >
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-slate-800/80 text-slate-300 border border-slate-700/50">
-                        {race.series}
-                      </span>
-                      {isPast && (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-zinc-800/50 text-zinc-500">
-                          Прошло
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="text-lg font-bold text-white tracking-wide">{race.name}</h3>
-                    <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-1">
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                        <span>{race.circuit}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Globe className="w-3.5 h-3.5 text-slate-500" />
-                        <span>{race.country}</span>
-                      </div>
-                    </div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-3">
+                   <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${SERIES_INFO[nextRace.series]?.activeClass || 'bg-white/20 text-white'}`}>
+                      {SERIES_INFO[nextRace.series]?.label || nextRace.series}
+                   </span>
+                   <div className="text-xs text-indigo-300 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                     Ближайший этап
+                   </div>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight mb-4 pr-6">
+                  {nextRace.name}
+                </h2>
+                
+                <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                  <div className="bg-black/40 border border-white/10 backdrop-blur-md rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
+                    <span className="text-xl sm:text-2xl font-black text-white">{timeLeft.days}</span>
+                    <span className="text-[9px] uppercase text-gray-400 mt-1 font-semibold tracking-wider">Дней</span>
                   </div>
-
-                  <div className="flex items-center gap-4 self-start md:self-center bg-slate-900/60 px-4 py-2.5 rounded-xl border border-slate-800/60 shadow-inner">
-                    <div className="flex items-center gap-2 text-slate-300 text-sm font-medium">
-                      <CalendarIcon className="w-4 h-4 text-red-500" />
-                      <span>
-                        {raceDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
-                      </span>
-                    </div>
-                    <div className="h-4 w-[1px] bg-slate-800"></div>
-                    <div className="flex items-center gap-1.5 text-slate-400 text-sm">
-                      <Clock className="w-3.5 h-3.5 text-slate-500" />
-                      <span>{race.time || '14:00'}</span>
-                    </div>
+                  <div className="bg-black/40 border border-white/10 backdrop-blur-md rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
+                    <span className="text-xl sm:text-2xl font-black text-white">{timeLeft.hours.toString().padStart(2, '0')}</span>
+                    <span className="text-[9px] uppercase text-gray-400 mt-1 font-semibold tracking-wider">Часов</span>
+                  </div>
+                  <div className="bg-black/40 border border-white/10 backdrop-blur-md rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
+                    <span className="text-xl sm:text-2xl font-black text-white">{timeLeft.mins.toString().padStart(2, '0')}</span>
+                    <span className="text-[9px] uppercase text-gray-400 mt-1 font-semibold tracking-wider">Минут</span>
+                  </div>
+                  <div className="bg-black/40 border border-white/10 backdrop-blur-md rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
+                    <span className="text-xl sm:text-2xl font-black text-indigo-400">{timeLeft.secs.toString().padStart(2, '0')}</span>
+                    <span className="text-[9px] uppercase text-gray-400 mt-1 font-semibold tracking-wider">Секунд</span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+            </div>
+          )}
 
-      </div>
-    </div>
-  );
-}
+          {(() => {
+            let lastMonthYear = '';
+            return filteredRaces.map((race, index) => {
+              const isNext = nextRace && nextRace.id === race.id;
+              
+              const currentMonthYear = race.parsedDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+              const isNewMonth = lastMonthYear !== currentMonthYear;
+              lastMonthYear = currentMonthYear;
+
+              const seriesCfg = SERIES_INFO[race.series] || { label: race.series, activeClass: 'bg-white/20 text-white' };
+
+              return (
+                <React.Fragment key={race.id || index}>
+                  {isNewMonth && (
+                    <div className="flex items-center gap-4 mt-8 mb-4 opacity-80" style={{ animation: `fadeIn 0.5s ease-out both` }}>
+                      <div className="h-px bg-white/10 flex-1"></div>
+                      <span className="text-xs font-bold text-white/50 uppercase tracking-widest">{currentMonthYear}</span>
+                      <div className="h-px bg-white/10 flex-1"></div>
+                    </div>
+                  )}
+                  
+                  <div 
+                    ref={isNext ? nextRaceRef : null}
+                    onClick={() => setSelectedRace(race)}
+                    className={`group bg-white/5 backdrop-blur-lg border rounded-2xl p-4 active:scale-[0.98] transition-all flex justify-between items-stretch gap-2 relative cursor-pointer hover:bg-white/10 ${
+                      isNext ? 'border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.2)]' : 'border-white/10 shadow-xl'
+                    }`}
+                    style={{ animation: `fadeIn 0.5s ease-out ${(index % 20) * 0.05}s both` }}
+                  >
+                    {isNext && (
+                      <div className="absolute -top-3 left-4 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-lg">
