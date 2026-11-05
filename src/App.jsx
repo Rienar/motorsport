@@ -2,46 +2,153 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   MapPin, Clock, Timer, X, Gauge, Ruler, Cloud, Navigation, 
   Trophy, RefreshCw, AlertCircle, CalendarPlus, Download, 
-  ChevronDown, ChevronUp, Users, User, Loader2, Award, ExternalLink, Radio
+  ChevronDown, ChevronUp, Users, User, Loader2, Award, ExternalLink, 
+  Radio, Calendar as CalendarIcon, LayoutList, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 const SUPABASE_URL = 'https://qugdovsytjqjawsesdix.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_DrPG1dGhbIWU2EARd9v88g_X3c_pPvX';
 
-const SERIES_INFO = {
-  all: { label: 'Все', activeClass: 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]' },
-  f1: { label: 'F1', activeClass: 'bg-red-500 text-white border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]' },
-  wec: { label: 'WEC', activeClass: 'bg-blue-500 text-white border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.4)]' },
-  dtm: { label: 'DTM', activeClass: 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.4)]' },
-  super_gt: { label: 'Super GT', activeClass: 'bg-green-500 text-white border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]' },
+const SERIES_CONFIG = {
+  all: { 
+    label: { ru: 'Все', en: 'All' }, 
+    activeClass: 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]',
+    badgeClass: 'bg-white/20 text-white border-white/30'
+  },
+  f1: { 
+    label: { ru: 'F1', en: 'F1' }, 
+    activeClass: 'bg-red-500 text-white border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]',
+    badgeClass: 'bg-red-500/20 text-red-300 border-red-500/40'
+  },
+  wec: { 
+    label: { ru: 'WEC', en: 'WEC' }, 
+    activeClass: 'bg-blue-500 text-white border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.4)]',
+    badgeClass: 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+  },
+  dtm: { 
+    label: { ru: 'DTM', en: 'DTM' }, 
+    activeClass: 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.4)]',
+    badgeClass: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
+  },
+  super_gt: { 
+    label: { ru: 'Super GT', en: 'Super GT' }, 
+    activeClass: 'bg-green-500 text-white border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]',
+    badgeClass: 'bg-green-500/20 text-green-300 border-green-500/40'
+  },
+};
+
+const TRANSLATIONS = {
+  ru: {
+    appTitle: 'Motorsport Tracker',
+    closestRace: 'Ближайший этап',
+    liveSession: 'ПРЯМОЙ ЭФИР',
+    onAir: 'В эфире:',
+    soon: 'Скоро',
+    pastRaces: 'Прошедшие',
+    noRaces: 'Нет запланированных гонок',
+    localTime: 'Местное',
+    yourTime: 'Ваше время',
+    trackLength: 'Длина',
+    lapRecord: 'Рекорд круга',
+    turns: 'Повороты',
+    weather: 'Погода',
+    loading: 'Загрузка...',
+    errorTitle: 'Ошибка',
+    days: 'Дней',
+    hours: 'Часов',
+    minutes: 'Минут',
+    seconds: 'Секунд',
+    stageResults: 'Итоги этапа',
+    afterStage: 'Зачёт после этапа',
+    tabRace: 'Этап',
+    tabAfterRace: 'После этапа',
+    drivers: 'Пилоты',
+    teams: 'Команды',
+    fullStandings: 'Полный зачет',
+    collapse: 'Свернуть',
+    pointsCalculating: 'Подсчет очков...',
+    resultsNotReady: 'Результаты еще не добавлены',
+    resultsInProgress: 'Заезд ещё не финишировал, результаты формируются',
+    seasonStandings: 'Турнирная таблица',
+    seasonSubtitle: 'Текущий общий зачёт по сумме завершённых этапов',
+    individualStandings: 'Личный зачёт',
+    constructorsCup: 'Кубок конструкторов',
+    noPastRacesInSeason: 'В этом сезоне еще нет завершенных гонок',
+    calendarView: 'Календарь',
+    listView: 'Список',
+    monthAll: 'Все',
+    weekDays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
+    months: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
+    monthsShort: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'],
+    standingsBtn: 'Зачёт',
+    wikiLink: 'Википедия'
+  },
+  en: {
+    appTitle: 'Motorsport Tracker',
+    closestRace: 'Upcoming Round',
+    liveSession: 'LIVE ON AIR',
+    onAir: 'On Air:',
+    soon: 'Soon',
+    pastRaces: 'Completed',
+    noRaces: 'No scheduled races found',
+    localTime: 'Local',
+    yourTime: 'Your Time',
+    trackLength: 'Length',
+    lapRecord: 'Lap Record',
+    turns: 'Turns',
+    weather: 'Weather',
+    loading: 'Loading...',
+    errorTitle: 'Error',
+    days: 'Days',
+    hours: 'Hours',
+    minutes: 'Mins',
+    seconds: 'Secs',
+    stageResults: 'Round Results',
+    afterStage: 'Standings Post-Round',
+    tabRace: 'Round',
+    tabAfterRace: 'Post-Round',
+    drivers: 'Drivers',
+    teams: 'Teams',
+    fullStandings: 'Full Standings',
+    collapse: 'Collapse',
+    pointsCalculating: 'Calculating championship points...',
+    resultsNotReady: 'Results not yet available',
+    resultsInProgress: 'Session currently active, results updating',
+    seasonStandings: 'Championship Standings',
+    seasonSubtitle: 'Current cumulative standings of all completed rounds',
+    individualStandings: 'Drivers Championship',
+    constructorsCup: 'Constructors Championship',
+    noPastRacesInSeason: 'No completed races in this season yet',
+    calendarView: 'Calendar',
+    listView: 'List',
+    monthAll: 'All',
+    weekDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+    monthsShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    standingsBtn: 'Standings',
+    wikiLink: 'Wikipedia'
+  }
 };
 
 const YEARS = ['2026', '2027'];
-const MONTHS = [
-  { value: 'all', label: 'Все' }, { value: '1', label: 'Янв' }, { value: '2', label: 'Фев' }, { value: '3', label: 'Мар' },
-  { value: '4', label: 'Апр' }, { value: '5', label: 'Май' }, { value: '6', label: 'Июн' }, { value: '7', label: 'Июл' }, 
-  { value: '8', label: 'Авг' }, { value: '9', label: 'Сен' }, { value: '10', label: 'Окт' }, { value: '11', label: 'Ноя' }, { value: '12', label: 'Дек' },
-];
 
-// Расчет точной длительности заезда для каждой серии
 const getRaceDurationMs = (race) => {
   const s = race.series?.toLowerCase() || '';
   const name = race.name?.toLowerCase() || '';
 
   if (s === 'f1') return 2 * 60 * 60 * 1000;
-  if (s === 'dtm') return 75 * 60 * 1000; // 1ч 15м
-  if (s === 'super_gt') return 150 * 60 * 1000; // 2.5ч
+  if (s === 'dtm') return 75 * 60 * 1000;
+  if (s === 'super_gt') return 150 * 60 * 1000;
   if (s === 'wec') {
     if (name.includes('24')) return 24 * 60 * 60 * 1000;
     if (name.includes('1812') || name.includes('10')) return 10 * 60 * 60 * 1000;
-    if (name.includes('8') || name.includes('сах') || name.includes('бах')) return 8 * 60 * 60 * 1000;
+    if (name.includes('8') || name.includes('сах') || name.includes('бах') || name.includes('bahrain')) return 8 * 60 * 60 * 1000;
     return 6 * 60 * 60 * 1000;
   }
   return 2 * 60 * 60 * 1000;
 };
 
-// Секундомер прямого эфира
-const LiveStopwatch = ({ startDate }) => {
+const LiveStopwatch = ({ startDate, t }) => {
   const [elapsed, setElapsed] = useState({ h: '00', m: '00', s: '00' });
 
   useEffect(() => {
@@ -64,13 +171,13 @@ const LiveStopwatch = ({ startDate }) => {
         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
         <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
       </span>
-      <span className="text-xs uppercase font-bold text-red-300 tracking-wider">В эфире:</span>
+      <span className="text-xs uppercase font-bold text-red-300 tracking-wider">{t.onAir}</span>
       <span className="text-xl font-black text-white font-mono tracking-widest">{elapsed.h}:{elapsed.m}:{elapsed.s}</span>
     </div>
   );
 };
 
-const CountdownTimer = ({ targetDate }) => {
+const CountdownTimer = ({ targetDate, t }) => {
   const [tl, setTl] = useState({ d: 0, h: '00', m: '00', s: '00' });
 
   useEffect(() => {
@@ -90,8 +197,8 @@ const CountdownTimer = ({ targetDate }) => {
   return (
     <div className="grid grid-cols-4 gap-2 sm:gap-3">
       {[
-        { val: tl.d, label: 'Дней' }, { val: tl.h, label: 'Часов' },
-        { val: tl.m, label: 'Минут' }, { val: tl.s, label: 'Секунд', color: 'text-indigo-400' }
+        { val: tl.d, label: t.days }, { val: tl.h, label: t.hours },
+        { val: tl.m, label: t.minutes }, { val: tl.s, label: t.seconds, color: 'text-indigo-400' }
       ].map((b, i) => (
         <div key={i} className="bg-white/5 border border-white/10 rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
           <span className={`text-xl sm:text-2xl font-black ${b.color || 'text-white'}`}>{b.val}</span>
@@ -102,25 +209,25 @@ const CountdownTimer = ({ targetDate }) => {
   );
 };
 
-const WeatherWidget = ({ raceDate, circuitName, country }) => {
-  const [weather, setWeather] = useState("Загрузка...");
+const WeatherWidget = ({ raceDate, circuitName, country, lang }) => {
+  const [weather, setWeather] = useState("...");
 
   useEffect(() => {
     let isMounted = true;
     const fetchWeather = async () => {
       const daysDiff = (raceDate - new Date()) / 86400000;
-      if (daysDiff > 7 || daysDiff < -5) return isMounted && setWeather("Ожидается");
+      if (daysDiff > 7 || daysDiff < -5) return isMounted && setWeather(lang === 'ru' ? "Ожидается" : "Expected");
       
       try {
         let coords;
         for (const query of [circuitName, country]) {
           if (!query || coords) continue;
-          const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=ru`);
+          const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=${lang}`);
           const data = await res.json();
           if (data.results?.length) coords = data.results[0];
         }
 
-        if (!coords) return isMounted && setWeather("Нет данных");
+        if (!coords) return isMounted && setWeather(lang === 'ru' ? "Нет данных" : "No data");
 
         const dateStr = raceDate.toISOString().split('T')[0];
         const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${coords.latitude}&longitude=${coords.longitude}&daily=temperature_2m_max,weathercode&timezone=auto&start_date=${dateStr}&end_date=${dateStr}`);
@@ -131,20 +238,29 @@ const WeatherWidget = ({ raceDate, circuitName, country }) => {
           const icon = wC === 0 ? '☀️' : wC <= 3 ? '⛅' : wC <= 49 ? '🌫️' : wC <= 69 ? '🌧️' : wC <= 79 ? '❄️' : '⛈️';
           if (isMounted) setWeather(`${icon} ${Math.round(wData.daily.temperature_2m_max[0])}°C`);
         } else {
-          if (isMounted) setWeather("Недоступен");
+          if (isMounted) setWeather(lang === 'ru' ? "Недоступен" : "N/A");
         }
       } catch {
-        if (isMounted) setWeather("Ошибка API");
+        if (isMounted) setWeather(lang === 'ru' ? "Ошибка" : "Error");
       }
     };
     fetchWeather();
     return () => { isMounted = false; };
-  }, [raceDate, circuitName, country]);
+  }, [raceDate, circuitName, country, lang]);
 
   return <div className="text-sm font-bold text-white">{weather}</div>;
 };
 
 export default function App() {
+  const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'ru');
+  const t = useMemo(() => TRANSLATIONS[lang] || TRANSLATIONS.ru, [lang]);
+
+  const toggleLanguage = () => {
+    const next = lang === 'ru' ? 'en' : 'ru';
+    setLang(next);
+    localStorage.setItem('app_lang', next);
+  };
+
   const [races, setRaces] = useState([]);
   const [circuitsMap, setCircuitsMap] = useState({});
   const [loading, setLoading] = useState(true);
@@ -157,7 +273,9 @@ export default function App() {
   const [activeMonth, setActiveMonth] = useState(queryParams.get('month') || 'all');
   const [showPast, setShowPast] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  
+  const [viewMode, setViewMode] = useState('list');
+  const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
+
   // Состояния карточки этапа
   const [selectedRace, setSelectedRace] = useState(null);
   const [isStandingsExpanded, setIsStandingsExpanded] = useState(false);
@@ -171,7 +289,7 @@ export default function App() {
   const [cumulativeTeams, setCumulativeTeams] = useState([]);
   const [standingsLoading, setStandingsLoading] = useState(false);
 
-  // Данные для глобальной модалки сезона (Вариант 2)
+  // Данные для глобальной модалки сезона
   const [showSeasonStandingsModal, setShowSeasonStandingsModal] = useState(false);
   const [seasonStandingsTab, setSeasonStandingsTab] = useState('drivers');
   const [seasonDrivers, setSeasonDrivers] = useState([]);
@@ -180,13 +298,11 @@ export default function App() {
 
   const nextRaceRef = useRef(null);
 
-  // Таймер обновления текущего времени для статуса LIVE
   useEffect(() => {
     const clock = setInterval(() => setCurrentTime(new Date()), 30000);
     return () => clearInterval(clock);
   }, []);
 
-  // Первичная параллельная загрузка: гонки (races) и справочник трасс (circuits)
   const fetchData = async () => {
     setLoading(true); setError(null);
     try {
@@ -199,15 +315,14 @@ export default function App() {
         })
       ]);
 
-      if (!racesRes.ok) throw new Error(`Ошибка загрузки гонок: ${racesRes.statusText}`);
+      if (!racesRes.ok) throw new Error(racesRes.statusText);
       const racesData = await racesRes.json();
       
       const cMap = {};
       if (circuitsRes.ok) {
         const circuitsData = await circuitsRes.json();
         circuitsData.forEach(c => {
-          // Индексируем по ID и дублируем по названию для надежности
-          cMap[c.id] = c;
+          cMap[String(c.id)] = c;
           cMap[c.name] = c;
         });
         setCircuitsMap(cMap);
@@ -225,10 +340,9 @@ export default function App() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Хелпер для получения данных автодрома по race.circuit_id (или fallback на race.circuit)
   const getCircuitInfo = (race) => {
     if (!race) return null;
-    return circuitsMap[race.circuit_id] || circuitsMap[race.circuit] || {
+    return circuitsMap[String(race.circuit_id)] || circuitsMap[race.circuit] || {
       name: race.circuit,
       country: race.country,
       length_km: null,
@@ -252,7 +366,6 @@ export default function App() {
       .map((item, idx) => ({ ...item, position: idx + 1 }));
   };
 
-  // Проверка статуса Live гонки
   const isRaceLive = (race) => {
     const start = race.parsedDate.getTime();
     const end = start + getRaceDurationMs(race);
@@ -260,8 +373,8 @@ export default function App() {
     return now >= start && now < end;
   };
 
-  // Загрузка результатов гонки / нарастающего зачета для выбранного этапа
   useEffect(() => {
+    let isCancelled = false;
     if (selectedRace && (selectedRace.parsedDate < new Date() || isRaceLive(selectedRace)) && selectedRace.series.toLowerCase() === 'f1') {
       setStandingsLoading(true);
 
@@ -287,38 +400,39 @@ export default function App() {
           headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } 
         }).then(r => r.json())
       ]).then(([dRace, tRace, dCum, tCum]) => {
+        if (isCancelled) return;
         setDriverStandings(Array.isArray(dRace) ? dRace : []);
         setTeamStandings(Array.isArray(tRace) ? tRace : []);
 
         if (Array.isArray(dCum) && Array.isArray(dRace)) {
           const racePointsMap = {};
           dRace.forEach(r => { racePointsMap[r.driver_name] = Number(r.points || 0); });
-          const aggDrivers = aggregateResults(dCum, 'driver_name').map(d => ({
+          setCumulativeDrivers(aggregateResults(dCum, 'driver_name').map(d => ({
             ...d,
             delta: racePointsMap[d.driver_name] || 0
-          }));
-          setCumulativeDrivers(aggDrivers);
+          })));
         }
 
         if (Array.isArray(tCum) && Array.isArray(tRace)) {
           const raceTeamPointsMap = {};
           tRace.forEach(r => { raceTeamPointsMap[r.team_name] = Number(r.points || 0); });
-          const aggTeams = aggregateResults(tCum, 'team_name').map(t => ({
+          setCumulativeTeams(aggregateResults(tCum, 'team_name').map(t => ({
             ...t,
             delta: raceTeamPointsMap[t.team_name] || 0
-          }));
-          setCumulativeTeams(aggTeams);
+          })));
         }
-      }).catch(console.error).finally(() => setStandingsLoading(false));
+      }).catch(console.error).finally(() => {
+        if (!isCancelled) setStandingsLoading(false);
+      });
     } else {
       setDriverStandings([]);
       setTeamStandings([]);
       setCumulativeDrivers([]);
       setCumulativeTeams([]);
     }
+    return () => { isCancelled = true; };
   }, [selectedRace, races]);
 
-  // Загрузка глобального стендинга сезона для кнопки в шапке
   const fetchGlobalSeasonStandings = async () => {
     setShowSeasonStandingsModal(true);
     setSeasonLoading(true);
@@ -336,14 +450,12 @@ export default function App() {
       return;
     }
 
-    const idsQuery = `in.(${pastF1SeasonIds.join(',')})`;
-
     try {
       const [dRes, tRes] = await Promise.all([
-        fetch(`${SUPABASE_URL}/rest/v1/driver_results?race_id=${idsQuery}`, {
+        fetch(`${SUPABASE_URL}/rest/v1/driver_results?race_id=in.(${pastF1SeasonIds.join(',')})`, {
           headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
         }).then(r => r.json()),
-        fetch(`${SUPABASE_URL}/rest/v1/team_results?race_id=${idsQuery}`, {
+        fetch(`${SUPABASE_URL}/rest/v1/team_results?race_id=in.(${pastF1SeasonIds.join(',')})`, {
           headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
         }).then(r => r.json())
       ]);
@@ -357,7 +469,6 @@ export default function App() {
     }
   };
 
-  // Определение ближайшей или текущей Live-гонки
   const activeOrNextRace = useMemo(() => {
     const live = races.find(r => isRaceLive(r));
     if (live) return { race: live, isLive: true };
@@ -380,8 +491,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (nextRaceRef.current && !loading) setTimeout(() => nextRaceRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' }), 500);
-  }, [loading]);
+    if (nextRaceRef.current && !loading && viewMode === 'list') {
+      setTimeout(() => nextRaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 500);
+    }
+  }, [loading, viewMode]);
 
   const filteredRaces = useMemo(() => {
     return races.filter(r => {
@@ -429,6 +542,47 @@ export default function App() {
     setStandingsScope('race');
   };
 
+  // Календарная сетка месяца (исправлен timezone-баг)
+  const calendarDays = useMemo(() => {
+    const year = parseInt(activeYear, 10);
+    const month = calMonth;
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    
+    let startDayOfWeek = firstDay.getDay() - 1;
+    if (startDayOfWeek === -1) startDayOfWeek = 6;
+
+    const days = [];
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+      days.push({ dayNumber: prevMonthLastDay - i, isCurrentMonth: false, date: new Date(year, month - 1, prevMonthLastDay - i) });
+    }
+
+    for (let i = 1; i <= lastDay.getDate(); i++) {
+      days.push({ dayNumber: i, isCurrentMonth: true, date: new Date(year, month, i) });
+    }
+
+    const remaining = 42 - days.length;
+    for (let i = 1; i <= remaining; i++) {
+      days.push({ dayNumber: i, isCurrentMonth: false, date: new Date(year, month + 1, i) });
+    }
+
+    return days.map(d => {
+      const y = d.date.getFullYear();
+      const m = d.date.getMonth();
+      const dateNum = d.date.getDate();
+
+      const racesOnDay = races.filter(r => {
+        const matchSeries = activeSeries === 'all' || r.series.toLowerCase() === activeSeries.toLowerCase();
+        return matchSeries && 
+               r.parsedDate.getFullYear() === y && 
+               r.parsedDate.getMonth() === m && 
+               r.parsedDate.getDate() === dateNum;
+      });
+      return { ...d, races: racesOnDay };
+    });
+  }, [activeYear, calMonth, races, activeSeries]);
+
   return (
     <div className={`min-h-screen bg-black text-white font-sans selection:bg-red-500 pb-10 flex justify-center ${isDesktop ? 'items-center bg-[#050505] py-8' : ''}`}>
       <style>{`
@@ -441,21 +595,54 @@ export default function App() {
       <div className={isDesktop ? 'w-full max-w-xl mx-auto rounded-3xl border border-white/10 shadow-2xl overflow-hidden bg-black min-h-[90vh]' : 'w-full max-w-full'} style={{ animation: 'appEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
         <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10 p-4 pt-8 shadow-2xl">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <div className="relative flex items-center justify-center w-8 h-8 bg-red-600/20 border border-red-500/40 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.3)]">
-                <Trophy className="text-red-500 w-4 h-4 animate-pulse" />
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+                <div className="relative flex items-center justify-center w-8 h-8 bg-red-600/20 border border-red-500/40 rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.3)]">
+                  <Trophy className="text-red-500 w-4 h-4 animate-pulse" />
+                </div>
+                {t.appTitle}
+              </h1>
+
+              {/* Переключатель RU / EN */}
+              <button 
+                onClick={toggleLanguage}
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold transition-all shadow-inner hover:border-white/20 active:scale-95"
+                title="Toggle Language / Переключить язык"
+              >
+                <span>{lang === 'ru' ? '🇷🇺' : '🇬🇧'}</span>
+                <span className="text-[11px] text-gray-300 uppercase tracking-wider">{lang}</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Переключатель Вид: Список / Календарь */}
+              <div className="flex bg-white/5 p-0.5 rounded-xl border border-white/10 text-xs">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                  title={t.listView}
+                >
+                  <LayoutList size={16} />
+                </button>
+                <button
+                  onClick={() => setViewMode('calendar')}
+                  className={`p-1.5 rounded-lg transition-all ${viewMode === 'calendar' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                  title={t.calendarView}
+                >
+                  <CalendarIcon size={16} />
+                </button>
               </div>
-              Motorsport Tracker
-            </h1>
-            <button onClick={fetchData} disabled={loading} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 hover:text-white transition-colors border border-white/10">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
+
+              <button onClick={fetchData} disabled={loading} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 hover:text-white transition-colors border border-white/10">
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
           
           <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
-            {Object.entries(SERIES_INFO).map(([key, info]) => (
+            {Object.entries(SERIES_CONFIG).map(([key, info]) => (
               <button key={key} onClick={() => setActiveSeries(key)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium border transition-all ${activeSeries === key ? info.activeClass : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>
-                {info.label}
+                {info.label[lang] || info.label.ru}
               </button>
             ))}
           </div>
@@ -467,10 +654,18 @@ export default function App() {
                   {year}
                 </button>
               ))}
-              <div className="w-px h-5 bg-white/20 mx-1 shrink-0"></div>
-              <select value={activeMonth} onChange={(e) => setActiveMonth(e.target.value)} className="appearance-none bg-white/5 border border-white/10 text-white text-xs font-semibold rounded-lg px-3 py-1.5 pr-6 focus:outline-none transition-all cursor-pointer hover:bg-white/10" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1em 1em' }}>
-                {MONTHS.map(m => <option key={m.value} value={m.value} className="bg-gray-900 text-white">{m.label}</option>)}
-              </select>
+              
+              {viewMode === 'list' && (
+                <>
+                  <div className="w-px h-5 bg-white/20 mx-1 shrink-0"></div>
+                  <select value={activeMonth} onChange={(e) => setActiveMonth(e.target.value)} className="appearance-none bg-white/5 border border-white/10 text-white text-xs font-semibold rounded-lg px-3 py-1.5 pr-6 focus:outline-none transition-all cursor-pointer hover:bg-white/10" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1em 1em' }}>
+                    <option value="all" className="bg-gray-900 text-white">{t.monthAll}</option>
+                    {t.monthsShort.map((m, idx) => (
+                      <option key={idx} value={(idx + 1).toString()} className="bg-gray-900 text-white">{m}</option>
+                    ))}
+                  </select>
+                </>
+              )}
 
               {activeSeries === 'f1' && (
                 <button 
@@ -478,17 +673,19 @@ export default function App() {
                   className="flex items-center gap-1.5 ml-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 transition-all shadow-[0_0_12px_rgba(245,158,11,0.2)]"
                 >
                   <Award size={13} className="text-amber-400" />
-                  <span>Зачёт {activeYear}</span>
+                  <span>{t.standingsBtn} {activeYear}</span>
                 </button>
               )}
             </div>
             
-            <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setShowPast(!showPast)}>
-              <span className="text-xs font-semibold text-gray-400">Прошедшие</span>
-              <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-all duration-300 border ${showPast ? 'bg-indigo-500 border-indigo-500' : 'bg-white/5 border-white/10'}`}>
-                <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-300" style={{ transform: showPast ? 'translateX(18px)' : 'translateX(3px)' }} />
+            {viewMode === 'list' && (
+              <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setShowPast(!showPast)}>
+                <span className="text-xs font-semibold text-gray-400">{t.pastRaces}</span>
+                <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-all duration-300 border ${showPast ? 'bg-indigo-500 border-indigo-500' : 'bg-white/5 border-white/10'}`}>
+                  <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-300" style={{ transform: showPast ? 'translateX(18px)' : 'translateX(3px)' }} />
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </header>
 
@@ -496,17 +693,17 @@ export default function App() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 space-y-4">
               <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-gray-400 text-sm">Загрузка...</p>
+              <p className="text-gray-400 text-sm">{t.loading}</p>
             </div>
           ) : error ? (
             <div className="bg-red-950/25 border border-red-500/30 rounded-2xl p-6 text-center space-y-2">
               <AlertCircle className="w-8 h-8 text-red-500 mx-auto" />
-              <h3 className="text-lg font-semibold text-red-200">Ошибка</h3>
+              <h3 className="text-lg font-semibold text-red-200">{t.errorTitle}</h3>
               <p className="text-sm text-red-400 mx-auto">{error}</p>
             </div>
           ) : (
             <>
-              {/* Блок Ближайшего или Текущего LIVE этапа */}
+              {/* Блок Ближайшего / LIVE этапа */}
               {activeOrNextRace.race && (
                 <div className={`border rounded-3xl p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center transition-all ${
                   activeOrNextRace.isLive 
@@ -516,132 +713,240 @@ export default function App() {
                   <Timer className="absolute -right-6 -bottom-6 w-40 h-40 text-white/5 pointer-events-none" />
                   <div className="relative z-10">
                     <div className="flex items-center gap-2 mb-3">
-                       <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${SERIES_INFO[activeOrNextRace.race.series]?.activeClass || 'bg-white/20 text-white'}`}>
-                          {SERIES_INFO[activeOrNextRace.race.series]?.label || activeOrNextRace.race.series}
+                       <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${SERIES_CONFIG[activeOrNextRace.race.series]?.activeClass || 'bg-white/20 text-white'}`}>
+                          {SERIES_CONFIG[activeOrNextRace.race.series]?.label[lang] || activeOrNextRace.race.series}
                        </span>
                        
                        {activeOrNextRace.isLive ? (
                          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider animate-pulse shadow-[0_0_12px_rgba(239,68,68,0.6)]">
-                           <Radio size={12} /> ПРЯМОЙ ЭФИР
+                           <Radio size={12} /> {t.liveSession}
                          </div>
                        ) : (
                          <div className="text-xs text-indigo-300 font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                           Ближайший этап
+                           {t.closestRace}
                          </div>
                        )}
                     </div>
                     <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight mb-4 pr-6">{activeOrNextRace.race.name}</h2>
                     
                     {activeOrNextRace.isLive ? (
-                      <LiveStopwatch startDate={activeOrNextRace.race.parsedDate} />
+                      <LiveStopwatch startDate={activeOrNextRace.race.parsedDate} t={t} />
                     ) : (
-                      <CountdownTimer targetDate={activeOrNextRace.race.parsedDate} />
+                      <CountdownTimer targetDate={activeOrNextRace.race.parsedDate} t={t} />
                     )}
                   </div>
                 </div>
               )}
 
-              {/* Список всех гонок */}
-              {(() => {
-                let lastMonthYear = '';
-                return filteredRaces.map((race, index) => {
-                  const isCurrentLive = isRaceLive(race);
-                  const isNext = !isCurrentLive && activeOrNextRace.race && activeOrNextRace.race.id === race.id;
-                  const currentMonthYear = race.parsedDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
-                  const isNewMonth = lastMonthYear !== currentMonthYear;
-                  lastMonthYear = currentMonthYear;
-                  const seriesCfg = SERIES_INFO[race.series] || { label: race.series, activeClass: 'bg-white/20 text-white' };
-                  const cInfo = getCircuitInfo(race);
+              {/* СПИСОК КАРТОЧЕК */}
+              {viewMode === 'list' && (
+                <>
+                  {(() => {
+                    let lastMonthYear = '';
+                    return filteredRaces.map((race, index) => {
+                      const isCurrentLive = isRaceLive(race);
+                      const isNext = !isCurrentLive && activeOrNextRace.race && activeOrNextRace.race.id === race.id;
+                      const currentMonthYear = race.parsedDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { month: 'long', year: 'numeric' });
+                      const isNewMonth = lastMonthYear !== currentMonthYear;
+                      lastMonthYear = currentMonthYear;
+                      const seriesCfg = SERIES_CONFIG[race.series] || { label: { ru: race.series, en: race.series }, activeClass: 'bg-white/20 text-white' };
+                      const cInfo = getCircuitInfo(race);
 
-                  return (
-                    <React.Fragment key={race.id || index}>
-                      {isNewMonth && (
-                        <div className="flex items-center gap-4 mt-8 mb-4 opacity-80" style={{ animation: `fadeIn 0.5s ease-out both` }}>
-                          <div className="h-px bg-white/10 flex-1"></div>
-                          <span className="text-xs font-bold text-white/50 uppercase tracking-widest">{currentMonthYear}</span>
-                          <div className="h-px bg-white/10 flex-1"></div>
-                        </div>
-                      )}
-                      <div 
-                        ref={isNext || isCurrentLive ? nextRaceRef : null}
-                        onClick={() => openModal(race)}
-                        className={`group bg-white/5 backdrop-blur-lg border rounded-2xl p-4 active:scale-[0.98] transition-all flex justify-between items-stretch gap-2 relative cursor-pointer hover:bg-white/10 ${
-                          isCurrentLive 
-                            ? 'border-red-500/70 shadow-[0_0_25px_rgba(239,68,68,0.3)] bg-red-950/20' 
-                            : isNext 
-                            ? 'border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.2)]' 
-                            : 'border-white/10 shadow-xl'
-                        }`}
-                        style={{ animation: `fadeIn 0.5s ease-out ${(index % 20) * 0.05}s both` }}
-                      >
-                        {isCurrentLive && (
-                          <div className="absolute -top-3 left-4 bg-red-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-lg flex items-center gap-1 animate-pulse">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white"></span> LIVE
-                          </div>
-                        )}
-                        {!isCurrentLive && isNext && (
-                          <div className="absolute -top-3 left-4 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-lg">
-                            Скоро
-                          </div>
-                        )}
+                      return (
+                        <React.Fragment key={race.id || index}>
+                          {isNewMonth && (
+                            <div className="flex items-center gap-4 mt-8 mb-4 opacity-80" style={{ animation: `fadeIn 0.5s ease-out both` }}>
+                              <div className="h-px bg-white/10 flex-1"></div>
+                              <span className="text-xs font-bold text-white/50 uppercase tracking-widest">{currentMonthYear}</span>
+                              <div className="h-px bg-white/10 flex-1"></div>
+                            </div>
+                          )}
+                          <div 
+                            ref={isNext || isCurrentLive ? nextRaceRef : null}
+                            onClick={() => openModal(race)}
+                            className={`group bg-white/5 backdrop-blur-lg border rounded-2xl p-4 active:scale-[0.98] transition-all flex justify-between items-stretch gap-2 relative cursor-pointer hover:bg-white/10 ${
+                              isCurrentLive 
+                                ? 'border-red-500/70 shadow-[0_0_25px_rgba(239,68,68,0.3)] bg-red-950/20' 
+                                : isNext 
+                                ? 'border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.2)]' 
+                                : 'border-white/10 shadow-xl'
+                            }`}
+                            style={{ animation: `fadeIn 0.5s ease-out ${(index % 20) * 0.05}s both` }}
+                          >
+                            {isCurrentLive && (
+                              <div className="absolute -top-3 left-4 bg-red-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-lg flex items-center gap-1 animate-pulse">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white"></span> LIVE
+                              </div>
+                            )}
+                            {!isCurrentLive && isNext && (
+                              <div className="absolute -top-3 left-4 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-lg">
+                                {t.soon}
+                              </div>
+                            )}
 
-                        <div className="flex flex-col items-start gap-3 flex-1">
-                          <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase border ${seriesCfg.activeClass}`}>{seriesCfg.label}</span>
-                          <div className="mt-1">
-                            <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white/95 leading-tight mb-2">{race.name}</h2>
-                            <div className="flex flex-wrap items-center gap-1.5 text-gray-400 text-sm font-medium">
-                              <MapPin size={14} className="text-gray-500 shrink-0" />
-                              
-                              {/* Ссылка на Википедию из circuitsMap */}
-                              {cInfo?.wiki_url ? (
-                                <a 
-                                  href={cInfo.wiki_url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer" 
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="text-gray-300 hover:text-white underline decoration-white/20 hover:decoration-white transition-colors flex items-center gap-1"
-                                  title="Открыть страницу трассы в Википедии"
-                                >
-                                  <span>{cInfo.name || race.circuit}</span>
-                                  <ExternalLink size={11} className="text-gray-500 group-hover:text-gray-300" />
-                                </a>
-                              ) : (
-                                <span>{cInfo?.name || race.circuit}</span>
-                              )}
+                            <div className="flex flex-col items-start gap-3 flex-1">
+                              <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase border ${seriesCfg.activeClass}`}>
+                                {seriesCfg.label[lang] || seriesCfg.label.ru}
+                              </span>
+                              <div className="mt-1">
+                                <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white/95 leading-tight mb-2">{race.name}</h2>
+                                <div className="flex flex-wrap items-center gap-1.5 text-gray-400 text-sm font-medium">
+                                  <MapPin size={14} className="text-gray-500 shrink-0" />
+                                  
+                                  {cInfo?.wiki_url ? (
+                                    <a 
+                                      href={cInfo.wiki_url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="text-gray-300 hover:text-white underline decoration-white/20 hover:decoration-white transition-colors flex items-center gap-1"
+                                      title={t.wikiLink}
+                                    >
+                                      <span>{cInfo.name || race.circuit}</span>
+                                      <ExternalLink size={11} className="text-gray-500 group-hover:text-gray-300" />
+                                    </a>
+                                  ) : (
+                                    <span>{cInfo?.name || race.circuit}</span>
+                                  )}
 
-                              <span className="text-gray-600 mx-1">•</span>
-                              <span>{race.parsedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}</span>
+                                  <span className="text-gray-600 mx-1">•</span>
+                                  <span>{race.parsedDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'long' })}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex pl-4 border-l border-white/10 shrink-0 min-w-[130px] sm:min-w-[150px] items-center">
+                              <div className="flex flex-col items-start justify-center w-full">
+                                  <span className="text-sm text-gray-400 font-medium leading-none mb-3 truncate w-full">{race.country}</span>
+                                  <div className="w-full flex justify-between items-center gap-2 mb-1.5">
+                                    <span className="text-[10px] text-gray-500 uppercase tracking-wide flex items-center gap-1">{t.localTime}</span>
+                                    <span className="text-sm font-bold text-gray-400 whitespace-nowrap">{race.time}</span>
+                                  </div>
+                                  <div className="w-full flex justify-between items-center gap-2">
+                                    <span className={`text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 ${isCurrentLive ? 'text-red-400' : 'text-indigo-400/80'}`}>
+                                      {isCurrentLive ? 'LIVE' : t.yourTime}
+                                    </span>
+                                    <span className={`text-sm sm:text-base font-bold whitespace-nowrap leading-none ${isCurrentLive ? 'text-red-300 font-mono' : 'text-indigo-300'}`}>
+                                      {isCurrentLive ? 'LIVE' : race.parsedDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    </span>
+                                  </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        </React.Fragment>
+                      );
+                    });
+                  })()}
+                  
+                  {filteredRaces.length === 0 && (
+                    <div className="text-center text-gray-500 py-16 flex flex-col items-center gap-3">
+                      <Trophy size={32} className="text-white/10" />
+                      <p>{t.noRaces}</p>
+                    </div>
+                  )}
+                </>
+              )}
 
-                        <div className="flex pl-4 border-l border-white/10 shrink-0 min-w-[130px] sm:min-w-[150px] items-center">
-                          <div className="flex flex-col items-start justify-center w-full">
-                              <span className="text-sm text-gray-400 font-medium leading-none mb-3 truncate w-full">{race.country}</span>
-                              <div className="w-full flex justify-between items-center gap-2 mb-1.5">
-                                <span className="text-[10px] text-gray-500 uppercase tracking-wide flex items-center gap-1">Местное</span>
-                                <span className="text-sm font-bold text-gray-400 whitespace-nowrap">{race.time}</span>
-                              </div>
-                              <div className="w-full flex justify-between items-center gap-2">
-                                <span className={`text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 ${isCurrentLive ? 'text-red-400' : 'text-indigo-400/80'}`}>
-                                  {isCurrentLive ? 'Идёт сейчас' : 'Ваше'}
-                                </span>
-                                <span className={`text-sm sm:text-base font-bold whitespace-nowrap leading-none ${isCurrentLive ? 'text-red-300 font-mono' : 'text-indigo-300'}`}>
-                                  {isCurrentLive ? 'LIVE' : race.parsedDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                </span>
-                              </div>
+              {/* ИНТЕРАКТИВНЫЙ КАЛЕНДАРЬ МЕСЯЦА */}
+              {viewMode === 'calendar' && (
+                <div className="bg-white/5 border border-white/10 rounded-3xl p-4 sm:p-6 shadow-2xl backdrop-blur-xl">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setCalMonth(prev => (prev === 0 ? 11 : prev - 1))}
+                        className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white transition-all active:scale-95"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      
+                      <select 
+                        value={calMonth} 
+                        onChange={(e) => setCalMonth(parseInt(e.target.value, 10))}
+                        className="appearance-none bg-white/5 border border-white/10 text-white font-bold text-base rounded-xl px-4 py-2 pr-8 focus:outline-none cursor-pointer hover:bg-white/10 transition-colors"
+                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1em 1em' }}
+                      >
+                        {t.months.map((mName, idx) => (
+                          <option key={idx} value={idx} className="bg-gray-900 text-white">{mName} {activeYear}</option>
+                        ))}
+                      </select>
+
+                      <button 
+                        onClick={() => setCalMonth(prev => (prev === 11 ? 0 : prev + 1))}
+                        className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white transition-all active:scale-95"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+
+                    <div className="hidden sm:flex items-center gap-3 text-xs text-gray-400">
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500"></span> F1</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span> WEC</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500"></span> DTM</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500"></span> Super GT</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1.5 mb-2 text-center">
+                    {t.weekDays.map((dName, i) => (
+                      <div key={i} className="text-xs font-bold text-gray-500 uppercase tracking-wider py-1">
+                        {dName}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                    {calendarDays.map((item, idx) => {
+                      const hasRaces = item.races.length > 0;
+                      const isToday = item.date.toDateString() === new Date().toDateString();
+
+                      return (
+                        <div 
+                          key={idx}
+                          className={`min-h-[72px] sm:min-h-[85px] p-1.5 rounded-2xl border transition-all flex flex-col justify-between relative overflow-hidden ${
+                            !item.isCurrentMonth 
+                              ? 'border-transparent opacity-25' 
+                              : hasRaces 
+                              ? 'bg-white/[0.07] border-white/20 hover:border-white/40 cursor-pointer shadow-lg' 
+                              : 'bg-white/[0.02] border-white/5'
+                          } ${isToday ? 'ring-2 ring-indigo-500' : ''}`}
+                          onClick={() => {
+                            if (hasRaces) {
+                              openModal(item.races[0]);
+                            }
+                          }}
+                        >
+                          <div className="flex justify-between items-center w-full">
+                            <span className={`text-xs font-bold ${hasRaces ? 'text-white' : 'text-gray-400'}`}>
+                              {item.dayNumber}
+                            </span>
+                            {isToday && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col gap-1 mt-1 w-full">
+                            {item.races.map((r, rIdx) => {
+                              const sCfg = SERIES_CONFIG[r.series.toLowerCase()] || SERIES_CONFIG.all;
+                              const isLive = isRaceLive(r);
+
+                              return (
+                                <div 
+                                  key={r.id || rIdx}
+                                  className={`text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-md truncate uppercase border flex items-center justify-between gap-1 shadow-sm ${
+                                    isLive ? 'bg-red-600 text-white border-red-500 animate-pulse' : sCfg.badgeClass
+                                  }`}
+                                  title={`${r.name} (${sCfg.label[lang] || r.series})`}
+                                >
+                                  <span className="truncate">{sCfg.label[lang] || r.series}</span>
+                                  {isLive && <span className="w-1 h-1 rounded-full bg-white animate-ping"></span>}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                      </div>
-                    </React.Fragment>
-                  );
-                });
-              })()}
-              
-              {filteredRaces.length === 0 && (
-                <div className="text-center text-gray-500 py-16 flex flex-col items-center gap-3">
-                  <Trophy size={32} className="text-white/10" />
-                  <p>Нет гонок</p>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </>
@@ -670,12 +975,12 @@ export default function App() {
 
               <div className="mb-6 pr-8">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className={`inline-block text-[10px] font-bold px-2.5 py-1 rounded-md uppercase border ${SERIES_INFO[selectedRace.series]?.activeClass || 'bg-white/20 text-white'}`}>
-                    {SERIES_INFO[selectedRace.series]?.label || selectedRace.series}
+                  <span className={`inline-block text-[10px] font-bold px-2.5 py-1 rounded-md uppercase border ${SERIES_CONFIG[selectedRace.series]?.activeClass || 'bg-white/20 text-white'}`}>
+                    {SERIES_CONFIG[selectedRace.series]?.label[lang] || selectedRace.series}
                   </span>
                   {currentLive && (
                     <span className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-600/30 border border-red-500/50 text-red-300 text-[10px] font-black uppercase tracking-wider animate-pulse">
-                      <Radio size={12} /> ИДЁТ ГОНКА
+                      <Radio size={12} /> {t.liveSession}
                     </span>
                   )}
                 </div>
@@ -691,45 +996,44 @@ export default function App() {
                       rel="noopener noreferrer" 
                       className="text-indigo-400 hover:text-indigo-300 text-xs flex items-center gap-1 underline underline-offset-2 ml-1"
                     >
-                      Википедия <ExternalLink size={11} />
+                      {t.wikiLink} <ExternalLink size={11} />
                     </a>
                   )}
                   <span className="text-gray-600">•</span>
-                  <span>{selectedRace.parsedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                  <span>{selectedRace.parsedDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                 </div>
               </div>
 
-              {/* Характеристики трассы из БД */}
+              {/* Характеристики трассы */}
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                  <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Ruler size={14}/> Длина</div>
-                  <div className="text-base font-bold text-white">{cInfo?.length_km ? `${cInfo.length_km} км` : '—'}</div>
+                  <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Ruler size={14}/> {t.trackLength}</div>
+                  <div className="text-base font-bold text-white">{cInfo?.length_km ? `${cInfo.length_km} ${lang === 'ru' ? 'км' : 'km'}` : '—'}</div>
                 </div>
 
                 <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                  <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Gauge size={14}/> Рекорд круга</div>
+                  <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Gauge size={14}/> {t.lapRecord}</div>
                   <div className="text-base font-bold text-white">{cInfo?.lap_record || '—'}</div>
                 </div>
 
                 <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                  <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Navigation size={14}/> Повороты</div>
+                  <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Navigation size={14}/> {t.turns}</div>
                   <div className="text-base font-bold text-white">{cInfo?.turns ? cInfo.turns : '—'}</div>
                 </div>
 
                 <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                  <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Cloud size={14}/> Погода</div>
-                  <WeatherWidget raceDate={selectedRace.parsedDate} circuitName={cInfo?.name || selectedRace.circuit} country={selectedRace.country} />
+                  <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Cloud size={14}/> {t.weather}</div>
+                  <WeatherWidget raceDate={selectedRace.parsedDate} circuitName={cInfo?.name || selectedRace.circuit} country={selectedRace.country} lang={lang} />
                 </div>
               </div>
 
-              {/* РЕЗУЛЬТАТЫ F1 */}
+              {/* Результаты этапа */}
               {(isPastRace || currentLive) && isF1 && (
                 <div className="mb-6 bg-black/40 border border-white/5 rounded-2xl p-4 overflow-hidden transition-all duration-300 min-h-[160px] relative">
-                  
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                     <h3 className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
                       <Trophy size={15} className="text-amber-400"/> 
-                      {standingsScope === 'race' ? 'Итоги этапа' : 'Зачёт после этапа'}
+                      {standingsScope === 'race' ? t.stageResults : t.afterStage}
                     </h3>
 
                     <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10 text-[11px]">
@@ -737,13 +1041,13 @@ export default function App() {
                         onClick={() => setStandingsScope('race')} 
                         className={`px-2.5 py-1 rounded-md font-semibold transition-all ${standingsScope === 'race' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}
                       >
-                        Этап
+                        {t.tabRace}
                       </button>
                       <button 
                         onClick={() => setStandingsScope('cumulative')} 
                         className={`px-2.5 py-1 rounded-md font-semibold transition-all ${standingsScope === 'cumulative' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}
                       >
-                        После этапа
+                        {t.tabAfterRace}
                       </button>
                     </div>
                   </div>
@@ -754,7 +1058,7 @@ export default function App() {
                     </div>
                   ) : activeList.length === 0 ? (
                     <div className="text-center text-gray-500 text-xs py-4">
-                      {currentLive ? 'Гонка ещё не финишировала, результаты формируются' : 'Результаты еще не добавлены'}
+                      {currentLive ? t.resultsInProgress : t.resultsNotReady}
                     </div>
                   ) : (
                     <>
@@ -762,7 +1066,7 @@ export default function App() {
                         <div className="space-y-4">
                           <div>
                             <div className="text-[10px] uppercase text-gray-500 font-bold mb-2">
-                              {standingsScope === 'race' ? 'Пилоты (Топ-3)' : 'Личный зачёт (Топ-3)'}
+                              {standingsScope === 'race' ? `${t.drivers} (Top-3)` : `${t.individualStandings} (Top-3)`}
                             </div>
                             {(standingsScope === 'race' ? driverStandings : cumulativeDrivers).slice(0, 3).map((d) => (
                               <div key={d.id || d.driver_name} className="flex justify-between items-center text-sm py-1.5 border-b border-white/5 last:border-0">
@@ -788,17 +1092,17 @@ export default function App() {
                             onClick={() => setIsStandingsExpanded(true)}
                             className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-semibold text-gray-300 transition-colors flex items-center justify-center gap-1"
                           >
-                            Полный зачет <ChevronDown size={14} />
+                            {t.fullStandings} <ChevronDown size={14} />
                           </button>
                         </div>
                       ) : (
                         <div className="space-y-4" style={{ animation: 'fadeIn 0.3s ease-out forwards' }}>
                           <div className="flex bg-white/5 p-1 rounded-xl">
                             <button onClick={() => setStandingsTab('drivers')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 ${standingsTab === 'drivers' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>
-                              <User size={14}/> Пилоты
+                              <User size={14}/> {t.drivers}
                             </button>
                             <button onClick={() => setStandingsTab('teams')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 ${standingsTab === 'teams' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>
-                              <Users size={14}/> Команды
+                              <Users size={14}/> {t.teams}
                             </button>
                           </div>
 
@@ -828,7 +1132,7 @@ export default function App() {
                             onClick={() => setIsStandingsExpanded(false)}
                             className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-semibold text-gray-300 transition-colors flex items-center justify-center gap-1"
                           >
-                            Свернуть <ChevronUp size={14} />
+                            {t.collapse} <ChevronUp size={14} />
                           </button>
                         </div>
                       )}
@@ -842,26 +1146,26 @@ export default function App() {
                 <div className="bg-indigo-950/20 border border-indigo-500/20 rounded-2xl p-4 flex justify-between items-center relative overflow-hidden">
                    <div>
                       <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                        <Clock size={12} /> Ваше время
+                        <Clock size={12} /> {t.yourTime}
                       </div>
                       <div className="text-2xl font-extrabold text-indigo-200">
                         {selectedRace.parsedDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </div>
-                      <div className="text-[10px] text-gray-500 font-bold uppercase mt-1 tracking-wider">Местное: {selectedRace.time}</div>
+                      <div className="text-[10px] text-gray-500 font-bold uppercase mt-1 tracking-wider">{t.localTime}: {selectedRace.time}</div>
                    </div>
                    
                    <div className="flex items-center gap-2 z-10">
                       <button 
                         onClick={(e) => handleAddToCalendar(e, 'google', selectedRace)}
                         className="p-2.5 bg-white/5 hover:bg-indigo-500 hover:border-indigo-400 border border-white/10 rounded-xl text-indigo-200 transition-all shadow-lg"
-                        title="Google Календарь"
+                        title="Google Calendar"
                       >
                         <CalendarPlus size={18} />
                       </button>
                       <button 
                         onClick={(e) => handleAddToCalendar(e, 'ics', selectedRace)}
                         className="p-2.5 bg-white/5 hover:bg-white/20 border border-white/10 rounded-xl text-gray-300 transition-all shadow-lg"
-                        title="Скачать .ics файл (Apple / Outlook)"
+                        title="Download .ics (Apple / Outlook)"
                       >
                         <Download size={18} />
                       </button>
@@ -874,7 +1178,7 @@ export default function App() {
         );
       })()}
 
-      {/* ГЛОБАЛЬНАЯ МОДАЛКА СТЕНДИНГА СЕЗОНА (ВАРИАНТ 2) */}
+      {/* ГЛОБАЛЬНАЯ МОДАЛКА СТЕНДИНГА СЕЗОНА */}
       {showSeasonStandingsModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 pointer-events-none">
           <div 
@@ -900,12 +1204,11 @@ export default function App() {
                 Formula 1 • {activeYear}
               </span>
               <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-                <Trophy className="text-amber-400 w-5 h-5" /> Турнирная таблица
+                <Trophy className="text-amber-400 w-5 h-5" /> {t.seasonStandings}
               </h2>
-              <p className="text-gray-400 text-xs mt-1">Текущий общий зачёт по сумме всех завершённых этапов</p>
+              <p className="text-gray-400 text-xs mt-1">{t.seasonSubtitle}</p>
             </div>
 
-            {/* Переключатель табов со свечением */}
             <div className="flex bg-white/[0.08] p-1.5 rounded-2xl border border-white/10 mb-4 shrink-0 shadow-inner">
               <button 
                 onClick={() => setSeasonStandingsTab('drivers')} 
@@ -915,7 +1218,7 @@ export default function App() {
                     : 'text-gray-300 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <User size={14}/> Личный зачёт
+                <User size={14}/> {t.individualStandings}
               </button>
               <button 
                 onClick={() => setSeasonStandingsTab('teams')} 
@@ -925,19 +1228,18 @@ export default function App() {
                     : 'text-gray-300 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <Users size={14}/> Кубок конструкторов
+                <Users size={14}/> {t.constructorsCup}
               </button>
             </div>
 
-            {/* Список зачета с индиго-акцентом для очков */}
             <div className="flex-1 overflow-y-auto hide-scrollbar divide-y divide-white/5 pr-1">
               {seasonLoading ? (
                 <div className="flex flex-col items-center justify-center py-16 space-y-3">
                   <Loader2 className="w-7 h-7 text-amber-400 animate-spin" />
-                  <p className="text-gray-400 text-xs">Подсчет очков чемпионата...</p>
+                  <p className="text-gray-400 text-xs">{t.pointsCalculating}</p>
                 </div>
               ) : (seasonStandingsTab === 'drivers' ? seasonDrivers : seasonTeams).length === 0 ? (
-                <div className="text-center text-gray-500 text-xs py-12">В этом сезоне еще нет завершенных гонок</div>
+                <div className="text-center text-gray-500 text-xs py-12">{t.noPastRacesInSeason}</div>
               ) : (
                 (seasonStandingsTab === 'drivers' ? seasonDrivers : seasonTeams).map((item) => (
                   <div key={item.driver_name || item.team_name} className="flex justify-between items-center py-2.5 px-2 hover:bg-white/[0.03] rounded-xl transition-colors">
