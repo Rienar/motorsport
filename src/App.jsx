@@ -60,38 +60,6 @@ const LiveStopwatch = ({ startDate, t }) => {
   );
 };
 
-const CountdownTimer = ({ targetDate, t }) => {
-  const [tl, setTl] = useState({ d: 0, h: '00', m: '00', s: '00' });
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const diff = targetDate - new Date();
-      if (diff <= 0) return clearInterval(timer);
-      setTl({
-        d: Math.floor(diff / 86400000),
-        h: Math.floor((diff / 3600000) % 24).toString().padStart(2, '0'),
-        m: Math.floor((diff / 60000) % 60).toString().padStart(2, '0'),
-        s: Math.floor((diff / 1000) % 60).toString().padStart(2, '0')
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [targetDate]);
-
-  return (
-    <div className="grid grid-cols-4 gap-2 sm:gap-3">
-      {[
-        { val: tl.d, label: t.days }, { val: tl.h, label: t.hours },
-        { val: tl.m, label: t.minutes }, { val: tl.s, label: t.seconds, color: 'text-indigo-400' }
-      ].map((b, i) => (
-        <div key={i} className="bg-white/5 border border-white/10 rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
-          <span className={`text-xl sm:text-2xl font-black ${b.color || 'text-white'}`}>{b.val}</span>
-          <span className="text-[9px] uppercase text-gray-400 mt-1 font-semibold tracking-wider">{b.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-};
-
 export default function App() {
   const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'ru');
   const t = useMemo(() => TRANSLATIONS[lang] || TRANSLATIONS.ru, [lang]);
@@ -467,7 +435,7 @@ export default function App() {
             <>
               {activeSeries === 'all' ? (
                 activeOrNextRace.race && (
-                  <div className={`border rounded-3xl p-4 sm:p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center transition-all ${
+                  <div className={`border rounded-3xl p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center transition-all ${
                     activeOrNextRace.isLive 
                       ? 'bg-gradient-to-br from-red-950/40 via-red-900/10 to-transparent border-red-500/50 shadow-[0_0_35px_rgba(239,68,68,0.25)]' 
                       : 'bg-gradient-to-br from-white/[0.08] to-white/[0.01] border-white/10'
@@ -500,7 +468,19 @@ export default function App() {
                       {activeOrNextRace.isLive ? (
                         <LiveStopwatch startDate={activeOrNextRace.race.parsedDate} t={t} />
                       ) : (
-                        <CountdownTimer targetDate={activeOrNextRace.race.parsedDate} t={t} />
+                        <div className="grid grid-cols-4 gap-2">
+                          {[
+                            { val: Math.floor((activeOrNextRace.race.parsedDate - currentTime) / 86400000), label: t.days },
+                            { val: Math.floor(((activeOrNextRace.race.parsedDate - currentTime) / 3600000) % 24).toString().padStart(2, '0'), label: t.hours },
+                            { val: Math.floor(((activeOrNextRace.race.parsedDate - currentTime) / 60000) % 60).toString().padStart(2, '0'), label: t.minutes },
+                            { val: Math.floor(((activeOrNextRace.race.parsedDate - currentTime) / 1000) % 60).toString().padStart(2, '0'), label: t.seconds, color: 'text-indigo-400' }
+                          ].map((b, i) => (
+                            <div key={i} className="bg-white/5 border border-white/10 rounded-2xl py-2 px-1.5 flex flex-col items-center justify-center shadow-inner">
+                              <span className={`text-lg sm:text-xl font-black ${b.color || 'text-white'}`}>{b.val}</span>
+                              <span className="text-[8px] uppercase text-gray-400 mt-0.5 font-semibold tracking-wider">{b.label}</span>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>
