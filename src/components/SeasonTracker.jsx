@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
-import { Trophy, Timer, Radio } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 
 export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSelectRace }) => {
-  // Фильтруем гонки по выбранной серии и текущему году
   const seriesRaces = useMemo(() => {
     if (activeSeries === 'all') return [];
     return races
@@ -14,17 +13,14 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
     if (seriesRaces.length === 0) return null;
 
     const now = currentTime.getTime();
-    
-    // Находим индекс текущего или следующего этапа
     let nextIndex = seriesRaces.findIndex(r => r.parsedDate.getTime() > now);
-    if (nextIndex === -1) nextIndex = seriesRaces.length; // Все прошли
+    if (nextIndex === -1) nextIndex = seriesRaces.length;
 
     const completedCount = seriesRaces.filter(r => r.parsedDate.getTime() <= now).length;
-    const currentRoundNum = Math.min(completedCount + 1, seriesRicesLength = seriesRaces.length);
+    const currentRoundNum = Math.min(completedCount + 1, seriesRaces.length);
 
     const nextRace = seriesRaces[nextIndex] || seriesRaces[seriesRaces.length - 1];
 
-    // Форматируем текст "Далее: Название (через X дней / завтра)"
     let subtitle = '';
     if (nextRace) {
       const diffDays = Math.ceil((nextRace.parsedDate - currentTime) / (1000 * 60 * 60 * 24));
@@ -57,7 +53,6 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
       <Trophy className="absolute -right-6 -bottom-6 w-40 h-40 text-white/5 pointer-events-none" />
       
       <div className="relative z-10">
-        {/* Верхняя строка: Счётчик этапов и подпись */}
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
           <div className="flex items-baseline gap-2">
             <span className="text-3xl sm:text-4xl font-black text-white font-mono tracking-tight">
@@ -73,18 +68,17 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
           </div>
         </div>
 
-        {/* Линия прогресса с точками этапов (как в виджете iOS) */}
         <div className="flex items-center gap-1.5 overflow-x-auto py-2 hide-scrollbar">
           {trackerData.roundsList.map((race, idx) => {
             const isPassed = race.parsedDate.getTime() <= currentTime.getTime();
             const isNext = idx === trackerData.currentRound - 1;
 
-            let dotColor = 'bg-white/20'; // будущие
+            let dotColor = 'bg-white/20';
             if (isPassed) {
-              dotColor = 'bg-white'; // прошедшие
+              dotColor = 'bg-white';
             }
             if (isNext) {
-              dotColor = 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-pulse'; // следующий этап
+              dotColor = 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-pulse';
             }
 
             return (
