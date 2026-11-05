@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
-  Timer, AlertCircle, Loader2, Radio
+  Timer, AlertCircle, Radio
 } from 'lucide-react';
 import { useRaces, useCircuits } from './services/queries';
 import { TRANSLATIONS } from './constants/translations';
@@ -353,7 +353,6 @@ export default function App() {
     }).sort((a, b) => a.parsedDate - b.parsedDate);
   }, [races, activeSeries, activeYear, activeMonth, showPast, currentTime]);
 
-  // Функция добавления в календарь
   const handleAddToCalendar = (e, type, race) => {
     e.stopPropagation();
     const cInfo = getCircuitInfo(race);
@@ -468,29 +467,35 @@ export default function App() {
             <>
               {activeSeries === 'all' ? (
                 activeOrNextRace.race && (
-                  <div className={`border rounded-3xl p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center transition-all ${
+                  <div className={`border rounded-3xl p-4 sm:p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center transition-all ${
                     activeOrNextRace.isLive 
                       ? 'bg-gradient-to-br from-red-950/40 via-red-900/10 to-transparent border-red-500/50 shadow-[0_0_35px_rgba(239,68,68,0.25)]' 
                       : 'bg-gradient-to-br from-white/[0.08] to-white/[0.01] border-white/10'
                   }`}>
                     <Timer className="absolute -right-6 -bottom-6 w-40 h-40 text-white/5 pointer-events-none" />
                     <div className="relative z-10">
-                      <div className="flex items-center gap-2 mb-3">
-                         <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${SERIES_CONFIG[activeOrNextRace.race.series]?.activeClass || 'bg-white/20 text-white'}`}>
-                            {SERIES_CONFIG[activeOrNextRace.race.series]?.label[lang] || activeOrNextRace.race.series}
-                         </span>
-                         
-                         {activeOrNextRace.isLive ? (
-                           <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider animate-pulse shadow-[0_0_12px_rgba(239,68,68,0.6)]">
-                             <Radio size={12} /> {t.liveSession}
-                           </div>
-                         ) : (
-                           <div className="text-xs text-indigo-300 font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                             {t.closestRace}
-                           </div>
-                         )}
+                      
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                           <span className={`shrink-0 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${SERIES_CONFIG[activeOrNextRace.race.series]?.activeClass || 'bg-white/20 text-white'}`}>
+                              {SERIES_CONFIG[activeOrNextRace.race.series]?.label[lang] || activeOrNextRace.race.series}
+                           </span>
+                           
+                           {activeOrNextRace.isLive ? (
+                             <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider animate-pulse shadow-[0_0_12px_rgba(239,68,68,0.6)]">
+                               <Radio size={12} /> {t.liveSession}
+                             </div>
+                           ) : (
+                             <div className="shrink-0 text-xs text-indigo-300 font-semibold uppercase tracking-wider hidden sm:block">
+                               {t.closestRace}:
+                             </div>
+                           )}
+                        </div>
+
+                        <h2 className="text-base sm:text-lg font-bold text-white truncate text-right">
+                          {activeOrNextRace.race.name}
+                        </h2>
                       </div>
-                      <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight mb-4 pr-6">{activeOrNextRace.race.name}</h2>
                       
                       {activeOrNextRace.isLive ? (
                         <LiveStopwatch startDate={activeOrNextRace.race.parsedDate} t={t} />
@@ -548,7 +553,6 @@ export default function App() {
                   
                   {filteredRaces.length === 0 && (
                     <div className="text-center text-gray-500 py-16 flex flex-col items-center gap-3">
-                      <Trophy size={32} className="text-white/10" />
                       <p>{t.noRaces}</p>
                     </div>
                   )}
