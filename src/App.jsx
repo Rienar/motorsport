@@ -40,21 +40,22 @@ const CountdownTimer = ({ targetDate }) => {
     return () => clearInterval(interval);
   }, [targetDate]);
 
+  // Убран backdrop-blur, установлен статичный bg-white/5, чтобы избежать морганий
   return (
     <div className="grid grid-cols-4 gap-2 sm:gap-3">
-      <div className="bg-black/40 border border-white/10 backdrop-blur-md rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
+      <div className="bg-white/5 border border-white/10 rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
         <span className="text-xl sm:text-2xl font-black text-white">{timeLeft.days}</span>
         <span className="text-[9px] uppercase text-gray-400 mt-1 font-semibold tracking-wider">Дней</span>
       </div>
-      <div className="bg-black/40 border border-white/10 backdrop-blur-md rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
+      <div className="bg-white/5 border border-white/10 rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
         <span className="text-xl sm:text-2xl font-black text-white">{timeLeft.hours.toString().padStart(2, '0')}</span>
         <span className="text-[9px] uppercase text-gray-400 mt-1 font-semibold tracking-wider">Часов</span>
       </div>
-      <div className="bg-black/40 border border-white/10 backdrop-blur-md rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
+      <div className="bg-white/5 border border-white/10 rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
         <span className="text-xl sm:text-2xl font-black text-white">{timeLeft.mins.toString().padStart(2, '0')}</span>
         <span className="text-[9px] uppercase text-gray-400 mt-1 font-semibold tracking-wider">Минут</span>
       </div>
-      <div className="bg-black/40 border border-white/10 backdrop-blur-md rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
+      <div className="bg-white/5 border border-white/10 rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
         <span className="text-xl sm:text-2xl font-black text-indigo-400">{timeLeft.secs.toString().padStart(2, '0')}</span>
         <span className="text-[9px] uppercase text-gray-400 mt-1 font-semibold tracking-wider">Секунд</span>
       </div>
@@ -62,7 +63,6 @@ const CountdownTimer = ({ targetDate }) => {
   );
 };
 
-// Интеллектуальный виджет погоды с подключением к Open-Meteo
 const WeatherWidget = ({ raceDate, circuit, country }) => {
   const [weather, setWeather] = useState("Загрузка...");
 
@@ -73,14 +73,12 @@ const WeatherWidget = ({ raceDate, circuit, country }) => {
       const now = new Date();
       const daysDifference = (raceDate - now) / (1000 * 60 * 60 * 24);
 
-      // Если до гонки больше 7 дней (или она прошла давно), показываем статику
       if (daysDifference > 7 || daysDifference < -5) {
         if (isMounted) setWeather("Ожидается (статично)");
         return;
       }
 
       try {
-        // Шаг 1: Ищем координаты по названию трассы, если не найдено - по названию страны
         let coords = null;
         const geoResCircuit = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(circuit)}&count=1&language=ru`);
         const geoDataCircuit = await geoResCircuit.json();
@@ -100,7 +98,6 @@ const WeatherWidget = ({ raceDate, circuit, country }) => {
           return;
         }
 
-        // Шаг 2: Получаем прогноз погоды на нужную дату
         const dateStr = raceDate.toISOString().split('T')[0];
         const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${coords.latitude}&longitude=${coords.longitude}&daily=temperature_2m_max,weathercode&timezone=auto&start_date=${dateStr}&end_date=${dateStr}`);
         const weatherData = await weatherRes.json();
@@ -110,12 +107,12 @@ const WeatherWidget = ({ raceDate, circuit, country }) => {
           const wCode = weatherData.daily.weathercode[0];
           
           let icon = '🌤️';
-          if (wCode === 0) icon = '☀️'; // Ясно
-          else if (wCode <= 3) icon = '⛅'; // Облачно
-          else if (wCode <= 49) icon = '🌫️'; // Туман
-          else if (wCode <= 69) icon = '🌧️'; // Дождь
-          else if (wCode <= 79) icon = '❄️'; // Снег
-          else icon = '⛈️'; // Гроза
+          if (wCode === 0) icon = '☀️'; 
+          else if (wCode <= 3) icon = '⛅'; 
+          else if (wCode <= 49) icon = '🌫️'; 
+          else if (wCode <= 69) icon = '🌧️'; 
+          else if (wCode <= 79) icon = '❄️'; 
+          else icon = '⛈️'; 
 
           if (isMounted) setWeather(`${icon} ${maxTemp}°C (Live)`);
         } else {
@@ -228,7 +225,6 @@ export default function App() {
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
 
-      {/* Основной контейнер со списком */}
       <div 
         className={isDesktop ? 'w-full max-w-xl mx-auto rounded-3xl border border-white/10 shadow-2xl overflow-hidden bg-black min-h-[90vh]' : 'w-full max-w-full'}
         style={{ animation: 'appEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
@@ -254,7 +250,7 @@ export default function App() {
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-2 mt-2 items-center justify-between">
+          <div className="flex flex-wrap gap-4 mt-2 items-center justify-between">
             <div className="flex gap-2 items-center">
               {YEARS.map(year => (
                 <button key={year} onClick={() => setActiveYear(year)} className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeYear === year ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
@@ -266,9 +262,25 @@ export default function App() {
                 {MONTHS.map(m => <option key={m.value} value={m.value} className="bg-gray-900 text-white">{m.label}</option>)}
               </select>
             </div>
-            <button onClick={() => setShowPastRaces(!showPastRaces)} className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${showPastRaces ? 'bg-white/20 text-white border-white/30' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}>
-              {showPastRaces ? 'Прошедшие видны' : 'Скрыть прошедшие'}
-            </button>
+            
+            {/* Реализация нового тогла для "Прошедшие гонки" */}
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs font-semibold text-gray-400 cursor-pointer" onClick={() => setShowPastRaces(!showPastRaces)}>
+                Прошедшие гонки
+              </span>
+              <button
+                onClick={() => setShowPastRaces(!showPastRaces)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-all duration-300 focus:outline-none border ${
+                  showPastRaces ? 'bg-indigo-500 border-indigo-500 shadow-lg shadow-indigo-500/40' : 'bg-white/5 border-white/10'
+                }`}
+              >
+                <span 
+                  className="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-300"
+                  style={{ transform: showPastRaces ? 'translateX(18px)' : 'translateX(3px)' }}
+                />
+              </button>
+            </div>
+
           </div>
         </header>
 
@@ -287,7 +299,8 @@ export default function App() {
           ) : (
             <>
               {nextRace && (
-                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center">
+                {/* Вместо динамичного backdrop-blur здесь статичный градиент для предотвращения моргания */}
+                <div className="bg-gradient-to-br from-white/[0.08] to-white/[0.01] border border-white/10 rounded-3xl p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center">
                   <Timer className="absolute -right-6 -bottom-6 w-40 h-40 text-white/5 pointer-events-none" />
                   <div className="relative z-10">
                     <div className="flex items-center gap-2 mb-3">
@@ -370,8 +383,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* ВАЖНО: Модальное окно вынесено за пределы контейнера с transform. 
-          Оно жестко фиксируется по центру экрана вне зависимости от высоты списка */}
       {selectedRace && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
           <div 
@@ -415,7 +426,6 @@ export default function App() {
                </div>
                <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
                   <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Cloud size={14}/> Прогноз погоды</div>
-                  {/* Компонент погоды запрашивает данные в реальном времени */}
                   <WeatherWidget raceDate={selectedRace.parsedDate} circuit={selectedRace.circuit} country={selectedRace.country} />
                </div>
             </div>
