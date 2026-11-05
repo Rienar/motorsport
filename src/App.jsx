@@ -7,17 +7,10 @@ import { Header } from './components/Header';
 import { RaceCard } from './components/RaceCard';
 import { CalendarView } from './components/CalendarView';
 import { SeasonTracker } from './components/SeasonTracker';
-
-// Подключаем наш новый кастомный хук
 import { useRaceStandings } from './hooks/useRaceStandings';
 
-// Ленивая загрузка тяжелых модальных окон (Code Splitting)
 const RaceModal = lazy(() => import('./components/RaceModal').then(m => ({ default: m.RaceModal })));
 const SeasonModal = lazy(() => import('./components/SeasonModal').then(m => ({ default: m.SeasonModal })));
-
-// ============================================================================
-// УТИЛИТЫ И ЛОКАЛЬНЫЕ КОМПОНЕНТЫ
-// ============================================================================
 
 const getRaceDurationMs = (race) => {
   const s = race.series?.toLowerCase() || '';
@@ -62,13 +55,7 @@ const LiveStopwatch = ({ startDate, t }) => {
   );
 };
 
-
-// ============================================================================
-// ГЛАВНЫЙ КОМПОНЕНТ APP
-// ============================================================================
-
 export default function App() {
-  // 1. ЛОКАЛИЗАЦИЯ И ДАННЫЕ
   const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'ru');
   const t = useMemo(() => TRANSLATIONS[lang] || TRANSLATIONS.ru, [lang]);
 
@@ -82,7 +69,6 @@ export default function App() {
   const { data: circuitsMap = {} } = useCircuits();
   const races = useMemo(() => rawRaces.map(r => ({ ...r, parsedDate: new Date(r.date) })), [rawRaces]);
 
-  // 2. СОСТОЯНИЯ UI И ФИЛЬТРОВ
   const queryParams = new URLSearchParams(window.location.search);
   const [activeSeries, setActiveSeries] = useState(queryParams.get('series') || 'all');
   const [activeYear, setActiveYear] = useState(queryParams.get('year') || '2026');
@@ -99,13 +85,20 @@ export default function App() {
   const nextRaceRef = useRef(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Обновление глобального времени раз в 30 секунд (избавляет от перерисовок всего App каждую секунду)
+  // === ИСПРАВЛЕНИЕ: АВТО-СБРОС МЕСЯЦА ===
+  // Если пользователь включает "Прошлые гонки", принудительно сбрасываем фильтр месяца на "Все", 
+  // чтобы он сразу увидел историю всего сезона, а не пустой список из-за несовпадения месяца.
+  useEffect(() => {
+    if (showPast && activeMonth !== 'all') {
+      setActiveMonth('all');
+    }
+  }, [showPast]);
+
   useEffect(() => {
     const clock = setInterval(() => setCurrentTime(new Date()), 30000);
     return () => clearInterval(clock);
   }, []);
 
-  // 3. БИЗНЕС-ЛОГИКА (Статусы и Календарь)
   const isRaceLive = useCallback((race) => {
     const start = race.parsedDate.getTime();
     const end = start + getRaceDurationMs(race);
@@ -113,7 +106,6 @@ export default function App() {
     return now >= start && now < end;
   }, [currentTime]);
 
-  // Подключаем хук с таблицами результатов
   const standingsData = useRaceStandings(selectedRace, races, activeYear, isRaceLive);
 
   const getCircuitInfo = (race) => {
@@ -158,7 +150,6 @@ export default function App() {
     return { race: upcoming, isLive: false };
   }, [races, currentTime, isRaceLive]);
 
-  // Синхронизация URL (Debounced концептуально)
   useEffect(() => {
     const p = new URLSearchParams();
     if (activeSeries !== 'all') p.set('series', activeSeries);
@@ -250,10 +241,6 @@ export default function App() {
     });
   }, [activeYear, calMonth, races, activeSeries]);
 
-  // ============================================================================
-  // РЕНДЕР ИНТЕРФЕЙСА
-  // ============================================================================
-
   return (
     <div className={`min-h-screen bg-black text-white font-sans selection:bg-red-500 pb-10 flex justify-center ${isDesktop ? 'items-center bg-[#050505] py-8' : ''}`}>
       <style>{`
@@ -289,7 +276,6 @@ export default function App() {
             </div>
           ) : (
             <>
-              {/* ВИДЖЕТ: ТАЙМЕР ИЛИ ТРЕКЕР СЕЗОНА */}
               {activeSeries === 'all' ? (
                 activeOrNextRace.race && (
                   <div className={`border rounded-3xl p-4 sm:p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center transition-all ${
@@ -345,7 +331,6 @@ export default function App() {
                 />
               )}
 
-              {/* СПИСОК / КАЛЕНДАРЬ */}
               {viewMode === 'list' && (
                 <>
                   {(() => {
@@ -394,7 +379,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* ЛЕНИВЫЕ МОДАЛЬНЫЕ ОКНА */}
       <Suspense fallback={null}>
         {dayRacesModal && (
           <RaceModal 
