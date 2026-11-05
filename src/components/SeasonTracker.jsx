@@ -14,12 +14,18 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
 
     const now = currentTime.getTime();
     let nextIndex = seriesRaces.findIndex(r => r.parsedDate.getTime() > now);
-    if (nextIndex === -1) nextIndex = seriesRaces.length;
+    
+    // Проверяем, есть ли еще гонки в этом году (или вообще в списке)
+    const hasUpcomingRaces = nextIndex !== -1;
+    
+    if (!hasUpcomingRaces) {
+      nextIndex = seriesRaces.length;
+    }
 
     const completedCount = seriesRaces.filter(r => r.parsedDate.getTime() <= now).length;
     const currentRoundNum = Math.min(completedCount + 1, seriesRaces.length);
 
-    const nextRace = seriesRaces[nextIndex] || seriesRaces[seriesRaces.length - 1];
+    const nextRace = hasUpcomingRaces ? seriesRaces[nextIndex] : null;
 
     let subtitle = '';
     if (nextRace) {
@@ -34,15 +40,17 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
         subtitle = lang === 'ru' ? `Далее: ${nextRace.name} (${timeStr})` : `Next: ${nextRace.name} (${timeStr})`;
       }
     } else {
-      subtitle = lang === 'ru' ? 'Сезон завершен' : 'Season finished';
+      // Сообщение, если гонки в данном сезоне завершены
+      subtitle = lang === 'ru' ? '🏁 Гонки в этом сезоне завершены' : '🏁 Races this season are completed';
     }
 
     return {
-      currentRound: Math.min(currentRoundNum, seriesRaces.length),
+      currentRound: hasUpcomingRaces ? Math.min(currentRoundNum, seriesRaces.length) : seriesRaces.length,
       totalRounds: seriesRaces.length,
       subtitle,
       nextRace,
-      roundsList: seriesRaces
+      roundsList: seriesRaces,
+      hasUpcomingRaces
     };
   }, [seriesRaces, currentTime, lang]);
 
@@ -63,7 +71,7 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
             </span>
           </div>
 
-          <div className="text-xs sm:text-sm font-semibold text-gray-300 truncate max-w-[220px] sm:max-w-xs">
+          <div className={`text-xs sm:text-sm font-semibold truncate max-w-[220px] sm:max-w-xs ${!trackerData.hasUpcomingRaces ? 'text-amber-400 font-bold' : 'text-gray-300'}`}>
             {trackerData.subtitle}
           </div>
         </div>
@@ -71,7 +79,7 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
         <div className="flex items-center gap-1.5 overflow-x-auto py-2 hide-scrollbar">
           {trackerData.roundsList.map((race, idx) => {
             const isPassed = race.parsedDate.getTime() <= currentTime.getTime();
-            const isNext = idx === trackerData.currentRound - 1;
+            const isNext = trackerData.hasUpcomingRaces && idx === trackerData.currentRound - 1;
 
             let dotColor = 'bg-white/20';
             if (isPassed) {
