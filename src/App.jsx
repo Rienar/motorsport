@@ -40,7 +40,6 @@ const CountdownTimer = ({ targetDate }) => {
     return () => clearInterval(interval);
   }, [targetDate]);
 
-  // Убран backdrop-blur, установлен статичный bg-white/5, чтобы избежать морганий
   return (
     <div className="grid grid-cols-4 gap-2 sm:gap-3">
       <div className="bg-white/5 border border-white/10 rounded-2xl py-3 px-2 flex flex-col items-center justify-center shadow-inner">
@@ -263,7 +262,6 @@ export default function App() {
               </select>
             </div>
             
-            {/* Реализация нового тогла для "Прошедшие гонки" */}
             <div className="flex items-center gap-2.5">
               <span className="text-xs font-semibold text-gray-400 cursor-pointer" onClick={() => setShowPastRaces(!showPastRaces)}>
                 Прошедшие гонки
@@ -298,8 +296,8 @@ export default function App() {
             </div>
           ) : (
             <>
+              {/* Вынесенный комментарий */}
               {nextRace && (
-                {/* Вместо динамичного backdrop-blur здесь статичный градиент для предотвращения моргания */}
                 <div className="bg-gradient-to-br from-white/[0.08] to-white/[0.01] border border-white/10 rounded-3xl p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center">
                   <Timer className="absolute -right-6 -bottom-6 w-40 h-40 text-white/5 pointer-events-none" />
                   <div className="relative z-10">
@@ -351,102 +349,4 @@ export default function App() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex pl-4 border-l border-white/10 shrink-0 min-w-[130px] sm:min-w-[150px] items-center">
-                          <div className="flex flex-col items-start justify-center w-full">
-                              <span className="text-sm text-gray-400 font-medium leading-none mb-3 truncate w-full">{race.country}</span>
-                              <div className="w-full flex justify-between items-center gap-2 mb-1.5">
-                                <span className="text-[10px] text-gray-500 uppercase tracking-wide flex items-center gap-1">Местное</span>
-                                <span className="text-sm font-bold text-gray-400 whitespace-nowrap">{race.time}</span>
-                              </div>
-                              <div className="w-full flex justify-between items-center gap-2">
-                                <span className="text-[10px] text-indigo-400/80 font-bold uppercase tracking-wide flex items-center gap-1">Ваше</span>
-                                <span className="text-sm sm:text-base font-bold text-indigo-300 whitespace-nowrap leading-none">
-                                  {race.parsedDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                </span>
-                              </div>
-                          </div>
-                        </div>
-                      </div>
-                    </React.Fragment>
-                  );
-                });
-              })()}
-
-              {filteredRaces.length === 0 && (
-                <div className="text-center text-gray-500 py-16 flex flex-col items-center gap-3">
-                  <Trophy size={32} className="text-white/10" />
-                  <p>Нет предстоящих гонок по выбранным фильтрам</p>
-                </div>
-              )}
-            </>
-          )}
-        </main>
-      </div>
-
-      {selectedRace && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
-          <div 
-            className="absolute inset-0 bg-black/80 backdrop-blur-md pointer-events-auto transition-opacity" 
-            style={{ animation: 'fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' }} 
-            onClick={() => setSelectedRace(null)}
-          ></div>
-          
-          <div 
-            className="bg-[#0c0c0e]/95 backdrop-blur-2xl border border-white/10 w-full max-w-lg rounded-3xl p-6 pointer-events-auto relative z-10 shadow-[0_20px_60px_rgba(0,0,0,0.8)] overflow-hidden" 
-            style={{ animation: 'modalScaleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
-          >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-            <button onClick={() => setSelectedRace(null)} className="absolute top-5 right-5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors"><X size={20} /></button>
-
-            <div className="mb-6 pr-8">
-              <span className={`inline-block text-[10px] font-bold px-2.5 py-1 rounded-md uppercase border mb-3 ${SERIES_INFO[selectedRace.series]?.activeClass || 'bg-white/20 text-white'}`}>
-                {SERIES_INFO[selectedRace.series]?.label || selectedRace.series}
-              </span>
-              <h2 className="text-2xl font-bold mb-2 text-white">{selectedRace.name}</h2>
-              <div className="text-gray-400 flex flex-wrap items-center gap-2 text-sm">
-                 <MapPin size={15} className="text-gray-500" /> 
-                 <span>{selectedRace.country}, {selectedRace.circuit}</span>
-                 <span className="text-gray-600">•</span>
-                 {selectedRace.parsedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mb-6">
-               <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                  <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Ruler size={14}/> Длина</div>
-                  <div className="text-base font-bold text-white">{getTrackDetails(selectedRace.circuit).length}</div>
-               </div>
-               <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                  <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Gauge size={14}/> Рекорд круга</div>
-                  <div className="text-base font-bold text-white">{getTrackDetails(selectedRace.circuit).record}</div>
-               </div>
-               <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                  <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Navigation size={14}/> Повороты</div>
-                  <div className="text-base font-bold text-white">{getTrackDetails(selectedRace.circuit).corners}</div>
-               </div>
-               <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                  <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Cloud size={14}/> Прогноз погоды</div>
-                  <WeatherWidget raceDate={selectedRace.parsedDate} circuit={selectedRace.circuit} country={selectedRace.country} />
-               </div>
-            </div>
-
-            <div className="bg-indigo-950/20 border border-indigo-500/20 rounded-2xl p-4 flex justify-between items-center relative overflow-hidden">
-               <div>
-                  <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                    <Clock size={12} /> Ваше время
-                  </div>
-                  <div className="text-2xl font-extrabold text-indigo-200">
-                    {selectedRace.parsedDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                  </div>
-               </div>
-               <div className="text-right z-10">
-                  <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Местное время</div>
-                  <div className="text-lg font-bold text-gray-400">{selectedRace.time}</div>
-               </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+                        <div className="flex pl-4 border-l border-white/10 shrink-0 min-w-[1
