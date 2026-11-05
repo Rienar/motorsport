@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Trophy } from 'lucide-react';
 
-export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSelectRace }) => {
+export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSelectRace, activeYear }) => {
   const seriesRaces = useMemo(() => {
     if (!races || activeSeries === 'all') return [];
     return races
@@ -12,21 +12,35 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
   const trackerData = useMemo(() => {
     if (!seriesRaces || seriesRaces.length === 0) return null;
 
-    const now = currentTime.getTime();
-    let nextIndex = seriesRaces.findIndex(r => r.parsedDate.getTime() > now);
+    const currentYearNum = new Date().getFullYear();
+    const selectedYearNum = parseInt(activeYear, 10) || currentYearNum;
     
+    // Является ли выбранный год будущим по отношению к реальному текущему году
+    const isFutureYear = selectedYearNum > currentYearNum;
+
+    const now = currentTime.getTime();
+    
+    // Фильтруем прошедшие гонки только если это не будущий год
+    const passedRacesCount = isFutureYear 
+      ? 0 
+      : seriesRaces.filter(r => r.parsedDate.getTime() <= now).length;
+
+    // Ищем индекс ближайшей предстоящей гонки
+    const nextIndex = isFutureYear 
+      ? 0 
+      : seriesRaces.findIndex(r => r.parsedDate.getTime() > now);
+
     const hasUpcomingRaces = nextIndex !== -1;
-    if (!hasUpcomingRaces) {
-      nextIndex = seriesRaces.length;
-    }
-
-    const completedCount = seriesRaces.filter(r => r.parsedDate.getTime() <= now).length;
-    const currentRoundNum = Math.min(completedCount + 1, seriesRaces.length);
-
-    const nextRace = hasUpcomingRaces ? seriesRaces[nextIndex] : null;
+    const nextRace = hasUpcomingRaces && !isFutureYear ? seriesRaces[nextIndex] : (isFutureYear ? seriesRaces[0] : null);
 
     let subtitle = '';
-    if (nextRace) {
+    let currentRoundNum = 0;
+
+    if (isFutureYear) {
+      currentRoundNum = 0;
+      subtitle = lang === 'ru' ? `Сезон ${selectedYearNum} (ожидание)` : `Season ${selectedYearNum} (upcoming)`;
+    } else if (hasUpcomingRaces) {
+      currentRoundNum = passedRacesCount; // Кол-во пройденных этапов
       const diffDays = Math.ceil((nextRace.parsedDate - currentTime) / (1000 * 60 * 60 * 24));
       const timeStr = nextRace.parsedDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short' });
       
@@ -38,27 +52,23 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
         subtitle = lang === 'ru' ? `Далее: ${nextRace.name} (${timeStr})` : `Next: ${nextRace.name} (${timeStr})`;
       }
     } else {
-      subtitle = lang === 'ru' ? '🏁 Гонки в этом сезоне завершены' : '🏁 Races this season are completed';
+      // Гонки в текущем году завершились
+      currentRoundNum = seriesRaces.length;
+      subtitle = lang === 'ru' ? 'Сезон завершен' : 'Season finished';
     }
 
     return {
-      currentRound: hasUpcomingRaces ? Math.min(currentRoundNum, seriesRaces.length) : seriesRaces.length,
+      currentRound: currentRoundNum,
       totalRounds: seriesRaces.length,
       subtitle,
-      nextRace,
+      nextRaceIndex: isFutureYear ? 0 : nextIndex,
       roundsList: seriesRaces,
+      isFutureYear,
       hasUpcomingRaces
     };
-  }, [seriesRaces, currentTime, lang]);
+  }, [seriesRaces, currentTime, lang, activeYear]);
 
-  // Если для выбранной категории в этом году нет гонок — ничего не выводим (или выводим заглушку)
-  if (!trackerData || trackerData.totalRounds === 0) {
-    return (
-      <div className="border border-white/10 rounded-3xl p-5 mb-6 text-center text-gray-500 bg-white/[0.02] text-xs">
-        {lang === 'ru' ? 'Нет данных о гонках в этом сезоне' : 'No race data available for this season'}
-      </div>
-    );
-  }
+  if (!trackerData || trackerData.totalRounds === 0) return null;
 
   const getActiveDotStyle = (seriesKey) => {
     switch (seriesKey?.toLowerCase()) {
@@ -87,22 +97,22 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
             </span>
           </div>
 
-          <div className={`text-xs sm:text-sm font-semibold truncate max-w-[220px] sm:max-w-xs ${!trackerData.hasUpcomingRaces ? 'text-amber-400 font-bold' : 'text-gray-300'}`}>
+          <div className={`text-xs sm:text-sm font-semibold truncate max-w-[220px] sm:max-w-xs ${!trackerData.hasUpcomingRaces && !trackerData.isFutureYear ? 'text-amber-400 font-bold' : 'text-gray-300'}`}>
             {trackerData.subtitle}
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 overflow-x-auto py-2 hide-scrollbar">
           {trackerData.roundsList.map((race, idx) => {
-            const isPassed = race.parsedDate.getTime() <= currentTime.getTime();
-            const isNext = trackerData.hasUpcomingRaces && idx === trackerData.currentRound - 1;
+            const isPassed = !trackerData.isFutureYear && race.parsedDate.getTime() <= currentTime.getTime();
+            const isNext = !trackerData.isFutureYear && trackerData.hasUpcomingRaces && idx === trackerData.nextRaceIndex;
+            const isFuture = trackerData.isFutureYear || (!isPassed && !isNext);
 
-            let dotColor = 'bg-white/20';
+            let dotColor = 'bg-white/20'; // По умолчанию для будущих / не пройденных
             if (isPassed) {
-              dotColor = 'bg-white';
-            }
-            if (isNext) {
-              dotColor = activeDotClass;
+              dotColor = 'bg-white'; // Прошедшие гонки (белые точки)
+            } else if (isNext) {
+              dotColor = activeDotClass; // Ближайшая гонка (цветная с анимацией)
             }
 
             return (
