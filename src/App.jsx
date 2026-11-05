@@ -36,7 +36,7 @@ const SERIES_CONFIG = {
   },
   super_gt: { 
     label: { ru: 'Super GT', en: 'Super GT' }, 
-    shortLabel: { ru: 'Sup GT', en: 'Sup GT' },
+    shortLabel: { ru: 'GT', en: 'GT' },
     activeClass: 'bg-green-500 text-white border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]',
     badgeClass: 'bg-green-500/20 text-green-300 border-green-500/40'
   },
