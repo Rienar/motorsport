@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Trophy, Award, RefreshCw, LayoutList, Calendar as CalendarIcon } from 'lucide-react';
 import { SERIES_CONFIG, YEARS } from '../constants/seriesConfig';
+import { MonthModal } from './MonthModal';
 
 export const Header = ({
   t, lang, onToggleLang, activeSeries, setActiveSeries,
@@ -8,6 +9,15 @@ export const Header = ({
   showPast, setShowPast, viewMode, setViewMode,
   onRefresh, loading, onOpenSeason
 }) => {
+  const [isMonthModalOpen, setIsMonthModalOpen] = useState(false);
+
+  // Текст для кнопки месяца в шапке
+  const getMonthButtonLabel = () => {
+    if (activeMonth === 'all') return lang === 'ru' ? 'Все месяцы' : 'All Months';
+    const idx = parseInt(activeMonth, 10) - 1;
+    return t.months[idx] || t.monthAll;
+  };
+
   return (
     <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10 p-4 pt-8 shadow-2xl">
       <div className="flex items-center justify-between mb-4">
@@ -60,12 +70,14 @@ export const Header = ({
           {viewMode === 'list' && (
             <>
               <div className="w-px h-5 bg-white/20 mx-1 shrink-0"></div>
-              <select value={activeMonth} onChange={(e) => setActiveMonth(e.target.value)} className="appearance-none bg-white/5 border border-white/10 text-white text-xs font-semibold rounded-lg px-3 py-1.5 pr-6 focus:outline-none transition-all cursor-pointer hover:bg-white/10">
-                <option value="all" className="bg-gray-900 text-white">{t.monthAll}</option>
-                {t.monthsShort.map((m, idx) => (
-                  <option key={idx} value={(idx + 1).toString()} className="bg-gray-900 text-white">{m}</option>
-                ))}
-              </select>
+              {/* Кнопка открытия модального окна месяцев */}
+              <button 
+                onClick={() => setIsMonthModalOpen(true)}
+                className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold rounded-xl px-3.5 py-1.5 transition-all shadow-sm"
+              >
+                <CalendarIcon size={13} className="text-red-500" />
+                <span>{getMonthButtonLabel()}</span>
+              </button>
             </>
           )}
 
@@ -86,6 +98,16 @@ export const Header = ({
           </div>
         )}
       </div>
+
+      {/* Модальное окно выбора месяцев */}
+      <MonthModal 
+        isOpen={isMonthModalOpen} 
+        onClose={() => setIsMonthModalOpen(false)}
+        activeMonth={activeMonth}
+        setActiveMonth={setActiveMonth}
+        t={t}
+        lang={lang}
+      />
     </header>
   );
 };
