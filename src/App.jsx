@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { MapPin, Clock, Timer, X, Gauge, Ruler, Cloud, Navigation, Trophy, RefreshCw, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { MapPin, Clock, Timer, X, Gauge, Ruler, Cloud, Navigation, Trophy, RefreshCw, AlertCircle, CalendarPlus, Download, ChevronDown, ChevronUp, Users, User } from 'lucide-react';
 
 const SUPABASE_URL = 'https://qugdovsytjqjawsesdix.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_DrPG1dGhbIWU2EARd9v88g_X3c_pPvX';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1Z2RvdnN5dGpxamF3c2VzZGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE5MTY2MTU4MTksImV4cCI6MjIzMjE5MTgxOX0.aYt_F8z0tT6aF0W1hO2uX8dK9jL3mN4pQ5rS6tU7vW8';
 
 const SERIES_INFO = {
   all: { label: 'Все', activeClass: 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]' },
@@ -18,6 +18,25 @@ const MONTHS = [
   { value: '4', label: 'Апр' }, { value: '5', label: 'Май' }, { value: '6', label: 'Июн' }, { value: '7', label: 'Июл' }, 
   { value: '8', label: 'Авг' }, { value: '9', label: 'Сен' }, { value: '10', label: 'Окт' }, { value: '11', label: 'Ноя' }, { value: '12', label: 'Дек' },
 ];
+
+// МОКОВЫЕ ДАННЫЕ СТЕНДИНГА (Позже замените на вызов из Supabase)
+const MOCK_F1_STANDINGS = {
+  drivers: [
+    { pos: 1, name: "Макс Ферстаппен", team: "Red Bull", points: 395 },
+    { pos: 2, name: "Ландо Норрис", team: "McLaren", points: 330 },
+    { pos: 3, name: "Шарль Леклер", team: "Ferrari", points: 315 },
+    { pos: 4, name: "Оскар Пиастри", team: "McLaren", points: 260 },
+    { pos: 5, name: "Карлос Сайнс", team: "Ferrari", points: 245 },
+    { pos: 6, name: "Льюис Хэмилтон", team: "Mercedes", points: 190 },
+  ],
+  teams: [
+    { pos: 1, name: "McLaren Mercedes", points: 590 },
+    { pos: 2, name: "Ferrari", points: 560 },
+    { pos: 3, name: "Red Bull Racing", points: 530 },
+    { pos: 4, name: "Mercedes", points: 350 },
+    { pos: 5, name: "Aston Martin", points: 90 },
+  ]
+};
 
 const CountdownTimer = ({ targetDate }) => {
   const [tl, setTl] = useState({ d: 0, h: '00', m: '00', s: '00' });
@@ -112,9 +131,14 @@ export default function App() {
   const [activeYear, setActiveYear] = useState(queryParams.get('year') || '2026');
   const [activeMonth, setActiveMonth] = useState(queryParams.get('month') || 'all');
   const [showPast, setShowPast] = useState(false);
-  const [selectedRace, setSelectedRace] = useState(null);
   const [isDesktop, setIsDesktop] = useState(false);
-  const nextRaceRef = useRef(null);
+  
+  // Состояния для модального окна
+  const [selectedRace, setSelectedRace] = useState(null);
+  const [isStandingsExpanded, setIsStandingsExpanded] = useState(false);
+  const [standingsTab, setStandingsTab] = useState('drivers'); // 'drivers' или 'teams'
+  
+  const nextRaceRef = React.useRef(null);
 
   const fetchRaces = async () => {
     setLoading(true); setError(null);
@@ -162,12 +186,48 @@ export default function App() {
     }).sort((a, b) => a.parsedDate - b.parsedDate);
   }, [races, activeSeries, activeYear, activeMonth, showPast]);
 
+  // Функция добавления в календарь
+  const handleAddToCalendar = (e, type, race) => {
+    e.stopPropagation();
+    const start = race.parsedDate;
+    // Примерно закладываем 2 часа на гонку
+    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000); 
+    const title = `${race.name} (${race.series.toUpperCase()})`;
+    const loc = `${race.circuit}, ${race.country}`;
+    const formatD = d => d.toISOString().replace(/-|:|\.\d+/g, '');
+
+    if (type === 'google') {
+      const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${formatD(start)}/${formatD(end)}&location=${encodeURIComponent(loc)}`;
+      window.open(url, '_blank');
+    } else if (type === 'ics') {
+      const ics = [
+        "BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT",
+        `SUMMARY:${title}`, `DTSTART:${formatD(start)}`, `DTEND:${formatD(end)}`, `LOCATION:${loc}`,
+        "END:VEVENT", "END:VCALENDAR"
+      ].join("\n");
+      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = `${race.name.replace(/\s+/g, '_')}.ics`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const openModal = (race) => {
+    setSelectedRace(race);
+    setIsStandingsExpanded(false); // Сбрасываем состояния стендинга при открытии нового окна
+    setStandingsTab('drivers');
+  };
+
   return (
     <div className={`min-h-screen bg-black text-white font-sans selection:bg-red-500 pb-10 flex justify-center ${isDesktop ? 'items-center bg-[#050505] py-8' : ''}`}>
       <style>{`
         @keyframes appEntrance { from { opacity: 0; transform: translateY(12px) scale(0.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
         @keyframes modalScaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
 
       <div className={isDesktop ? 'w-full max-w-xl mx-auto rounded-3xl border border-white/10 shadow-2xl overflow-hidden bg-black min-h-[90vh]' : 'w-full max-w-full'} style={{ animation: 'appEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
@@ -184,7 +244,7 @@ export default function App() {
             </button>
           </div>
           
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
             {Object.entries(SERIES_INFO).map(([key, info]) => (
               <button key={key} onClick={() => setActiveSeries(key)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium border transition-all ${activeSeries === key ? info.activeClass : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>
                 {info.label}
@@ -264,7 +324,7 @@ export default function App() {
                       )}
                       <div 
                         ref={isNext ? nextRaceRef : null}
-                        onClick={() => setSelectedRace(race)}
+                        onClick={() => openModal(race)}
                         className={`group bg-white/5 backdrop-blur-lg border rounded-2xl p-4 active:scale-[0.98] transition-all flex justify-between items-stretch gap-2 relative cursor-pointer hover:bg-white/10 ${isNext ? 'border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.2)]' : 'border-white/10 shadow-xl'}`}
                         style={{ animation: `fadeIn 0.5s ease-out ${(index % 20) * 0.05}s both` }}
                       >
@@ -312,14 +372,19 @@ export default function App() {
         </main>
       </div>
 
+      {/* МОДАЛЬНОЕ ОКНО */}
       {selectedRace && (() => {
         const track = getTrackDetails(selectedRace.circuit);
+        const isPastRace = selectedRace.parsedDate < new Date();
+        const isF1 = selectedRace.series.toLowerCase() === 'f1';
+
         return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md pointer-events-auto transition-opacity" style={{ animation: 'fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' }} onClick={() => setSelectedRace(null)}></div>
-            <div className="bg-[#0c0c0e]/95 backdrop-blur-2xl border border-white/10 w-full max-w-lg rounded-3xl p-6 pointer-events-auto relative z-10 shadow-[0_20px_60px_rgba(0,0,0,0.8)] overflow-hidden" style={{ animation: 'modalScaleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
+            <div className="bg-[#0c0c0e]/95 backdrop-blur-2xl border border-white/10 w-full max-w-lg max-h-[90vh] overflow-y-auto hide-scrollbar rounded-3xl p-6 pointer-events-auto relative z-10 shadow-[0_20px_60px_rgba(0,0,0,0.8)]" style={{ animation: 'modalScaleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-              <button onClick={() => setSelectedRace(null)} className="absolute top-5 right-5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors"><X size={20} /></button>
+              
+              <button onClick={() => setSelectedRace(null)} className="absolute top-5 right-5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors z-20"><X size={20} /></button>
 
               <div className="mb-6 pr-8">
                 <span className={`inline-block text-[10px] font-bold px-2.5 py-1 rounded-md uppercase border mb-3 ${SERIES_INFO[selectedRace.series]?.activeClass || 'bg-white/20 text-white'}`}>
@@ -334,6 +399,7 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Плашки со статистикой */}
               <div className="grid grid-cols-2 gap-3 mb-6">
                 {[
                   { icon: Ruler, label: 'Длина', val: track.length },
@@ -351,16 +417,101 @@ export default function App() {
                 </div>
               </div>
 
+              {/* СТЕНДИНГ F1 (Если гонка прошла) */}
+              {isPastRace && isF1 && (
+                <div className="mb-6 bg-black/40 border border-white/5 rounded-2xl p-4 overflow-hidden transition-all duration-300">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                      <Trophy size={16} className="text-yellow-500"/> Итоги этапа
+                    </h3>
+                  </div>
+                  
+                  {!isStandingsExpanded ? (
+                    // Свернутый вид: Топ-3
+                    <div className="space-y-4">
+                      <div>
+                        <div className="text-[10px] uppercase text-gray-500 font-bold mb-2">Пилоты (Топ-3)</div>
+                        {MOCK_F1_STANDINGS.drivers.slice(0, 3).map((d) => (
+                          <div key={d.name} className="flex justify-between items-center text-sm py-1 border-b border-white/5 last:border-0">
+                            <div className="flex gap-3 items-center"><span className="text-gray-500 font-bold w-3">{d.pos}</span><span className="text-white">{d.name}</span></div>
+                            <span className="text-gray-400 text-xs">{d.team}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <button 
+                        onClick={() => setIsStandingsExpanded(true)}
+                        className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-semibold text-gray-300 transition-colors flex items-center justify-center gap-1"
+                      >
+                        Полный зачет <ChevronDown size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    // Развернутый вид: Полный зачет с табами
+                    <div className="space-y-4" style={{ animation: 'fadeIn 0.3s ease-out forwards' }}>
+                      <div className="flex bg-white/5 p-1 rounded-xl">
+                        <button onClick={() => setStandingsTab('drivers')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 ${standingsTab === 'drivers' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}><User size={14}/> Пилоты</button>
+                        <button onClick={() => setStandingsTab('teams')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 ${standingsTab === 'teams' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Users size={14}/> Команды</button>
+                      </div>
+
+                      <div className="max-h-48 overflow-y-auto hide-scrollbar pr-1">
+                        {(standingsTab === 'drivers' ? MOCK_F1_STANDINGS.drivers : MOCK_F1_STANDINGS.teams).map((item) => (
+                          <div key={item.name} className="flex justify-between items-center text-sm py-2 border-b border-white/5 last:border-0">
+                            <div className="flex gap-3 items-center">
+                              <span className={`font-bold w-4 ${item.pos === 1 ? 'text-yellow-500' : item.pos === 2 ? 'text-gray-300' : item.pos === 3 ? 'text-orange-400' : 'text-gray-600'}`}>{item.pos}</span>
+                              <div>
+                                <div className="text-white font-medium">{item.name}</div>
+                                {item.team && <div className="text-[10px] text-gray-500 uppercase">{item.team}</div>}
+                              </div>
+                            </div>
+                            <span className="text-indigo-300 font-bold">{item.points} <span className="text-[10px] text-indigo-500/50">PTS</span></span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <button 
+                        onClick={() => setIsStandingsExpanded(false)}
+                        className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-semibold text-gray-300 transition-colors flex items-center justify-center gap-1"
+                      >
+                        Свернуть <ChevronUp size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Блок Времени и Добавления в календарь */}
               <div className="bg-indigo-950/20 border border-indigo-500/20 rounded-2xl p-4 flex justify-between items-center relative overflow-hidden">
-                <div>
-                    <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5"><Clock size={12} /> Ваше время</div>
-                    <div className="text-2xl font-extrabold text-indigo-200">{selectedRace.parsedDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                </div>
-                <div className="text-right z-10">
-                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Местное время</div>
-                    <div className="text-lg font-bold text-gray-400">{selectedRace.time}</div>
-                </div>
+                 <div>
+                    <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                      <Clock size={12} /> {isPastRace ? 'Старт был в' : 'Ваше время'}
+                    </div>
+                    <div className="text-2xl font-extrabold text-indigo-200">
+                      {selectedRace.parsedDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </div>
+                    <div className="text-[10px] text-gray-500 font-bold uppercase mt-1 tracking-wider">Местное: {selectedRace.time}</div>
+                 </div>
+                 
+                 {/* Кнопки календаря (Показываем только для предстоящих гонок) */}
+                 {!isPastRace && (
+                   <div className="flex items-center gap-2 z-10">
+                      <button 
+                        onClick={(e) => handleAddToCalendar(e, 'google', selectedRace)}
+                        className="p-2.5 bg-white/5 hover:bg-indigo-500 hover:border-indigo-400 border border-white/10 rounded-xl text-indigo-200 transition-all shadow-lg"
+                        title="Google Календарь"
+                      >
+                        <CalendarPlus size={18} />
+                      </button>
+                      <button 
+                        onClick={(e) => handleAddToCalendar(e, 'ics', selectedRace)}
+                        className="p-2.5 bg-white/5 hover:bg-white/20 border border-white/10 rounded-xl text-gray-300 transition-all shadow-lg"
+                        title="Скачать .ics файл (Apple / Outlook)"
+                      >
+                        <Download size={18} />
+                      </button>
+                   </div>
+                 )}
               </div>
+
             </div>
           </div>
         );
