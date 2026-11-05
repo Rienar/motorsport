@@ -5,139 +5,12 @@ import {
   ChevronDown, ChevronUp, Users, User, Loader2, Award, ExternalLink, 
   Radio, Calendar as CalendarIcon, LayoutList, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { useRaces, useCircuits } from './services/queries';
+import { TRANSLATIONS } from './constants/translations';
+import { SERIES_CONFIG, YEARS } from './constants/seriesConfig';
 
 const SUPABASE_URL = 'https://qugdovsytjqjawsesdix.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_DrPG1dGhbIWU2EARd9v88g_X3c_pPvX';
-
-const SERIES_CONFIG = {
-  all: { 
-    label: { ru: 'Все', en: 'All' }, 
-    shortLabel: { ru: 'Все', en: 'All' },
-    activeClass: 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]',
-    badgeClass: 'bg-white/20 text-white border-white/30'
-  },
-  f1: { 
-    label: { ru: 'F1', en: 'F1' }, 
-    shortLabel: { ru: 'F1', en: 'F1' },
-    activeClass: 'bg-red-500 text-white border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]',
-    badgeClass: 'bg-red-500/20 text-red-300 border-red-500/40'
-  },
-  wec: { 
-    label: { ru: 'WEC', en: 'WEC' }, 
-    shortLabel: { ru: 'WEC', en: 'WEC' },
-    activeClass: 'bg-blue-500 text-white border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.4)]',
-    badgeClass: 'bg-blue-500/20 text-blue-300 border-blue-500/40'
-  },
-  dtm: { 
-    label: { ru: 'DTM', en: 'DTM' }, 
-    shortLabel: { ru: 'DTM', en: 'DTM' },
-    activeClass: 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.4)]',
-    badgeClass: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
-  },
-  super_gt: { 
-    label: { ru: 'Super GT', en: 'Super GT' }, 
-    shortLabel: { ru: 'GT', en: 'GT' },
-    activeClass: 'bg-green-500 text-white border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]',
-    badgeClass: 'bg-green-500/20 text-green-300 border-green-500/40'
-  },
-};
-
-const TRANSLATIONS = {
-  ru: {
-    appTitle: 'Motorsport Tracker',
-    closestRace: 'Ближайший этап',
-    liveSession: 'ПРЯМОЙ ЭФИР',
-    onAir: 'В эфире:',
-    soon: 'Скоро',
-    pastRaces: 'Прошедшие',
-    noRaces: 'Нет запланированных гонок',
-    localTime: 'Местное',
-    yourTime: 'Ваше время',
-    trackLength: 'Длина',
-    lapRecord: 'Рекорд круга',
-    turns: 'Повороты',
-    weather: 'Погода',
-    loading: 'Загрузка...',
-    errorTitle: 'Ошибка',
-    days: 'Дней',
-    hours: 'Часов',
-    minutes: 'Минут',
-    seconds: 'Секунд',
-    stageResults: 'Итоги этапа',
-    afterStage: 'Зачёт после этапа',
-    tabRace: 'Этап',
-    tabAfterRace: 'После этапа',
-    drivers: 'Пилоты',
-    teams: 'Команды',
-    fullStandings: 'Полный зачет',
-    collapse: 'Свернуть',
-    pointsCalculating: 'Подсчет очков...',
-    resultsNotReady: 'Результаты еще не добавлены',
-    resultsInProgress: 'Заезд ещё не финишировал, результаты формируются',
-    seasonStandings: 'Турнирная таблица',
-    seasonSubtitle: 'Текущий общий зачёт по сумме завершённых этапов',
-    individualStandings: 'Личный зачёт',
-    constructorsCup: 'Кубок конструкторов',
-    noPastRacesInSeason: 'В этом сезоне еще нет завершенных гонок',
-    calendarView: 'Календарь',
-    listView: 'Список',
-    monthAll: 'Все',
-    weekDays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
-    months: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
-    monthsShort: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'],
-    standingsBtn: 'Зачёт',
-    wikiLink: 'Википедия',
-    eventsOnDay: 'Этапы этого дня'
-  },
-  en: {
-    appTitle: 'Motorsport Tracker',
-    closestRace: 'Upcoming Round',
-    liveSession: 'LIVE ON AIR',
-    onAir: 'On Air:',
-    soon: 'Soon',
-    pastRaces: 'Completed',
-    noRaces: 'No scheduled races found',
-    localTime: 'Local',
-    yourTime: 'Your Time',
-    trackLength: 'Length',
-    lapRecord: 'Lap Record',
-    turns: 'Turns',
-    weather: 'Weather',
-    loading: 'Loading...',
-    errorTitle: 'Error',
-    days: 'Days',
-    hours: 'Hours',
-    minutes: 'Mins',
-    seconds: 'Secs',
-    stageResults: 'Round Results',
-    afterStage: 'Standings Post-Round',
-    tabRace: 'Round',
-    tabAfterRace: 'Post-Round',
-    drivers: 'Drivers',
-    teams: 'Teams',
-    fullStandings: 'Full Standings',
-    collapse: 'Collapse',
-    pointsCalculating: 'Calculating championship points...',
-    resultsNotReady: 'Results not yet available',
-    resultsInProgress: 'Session currently active, results updating',
-    seasonStandings: 'Championship Standings',
-    seasonSubtitle: 'Current cumulative standings of all completed rounds',
-    individualStandings: 'Drivers Championship',
-    constructorsCup: 'Constructors Championship',
-    noPastRacesInSeason: 'No completed races in this season yet',
-    calendarView: 'Calendar',
-    listView: 'List',
-    monthAll: 'All',
-    weekDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
-    monthsShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    standingsBtn: 'Standings',
-    wikiLink: 'Wikipedia',
-    eventsOnDay: 'Events on this day'
-  }
-};
-
-const YEARS = ['2026', '2027'];
 
 const getRaceDurationMs = (race) => {
   const s = race.series?.toLowerCase() || '';
@@ -268,11 +141,10 @@ export default function App() {
     localStorage.setItem('app_lang', nextLang);
   };
 
-  const [races, setRaces] = useState([]);
-  const [circuitsMap, setCircuitsMap] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const { data: rawRaces = [], isLoading: racesLoading, error: racesError, refetch } = useRaces();
+  const { data: circuitsMap = {} } = useCircuits();
+
+  const races = useMemo(() => rawRaces.map(r => ({ ...r, parsedDate: new Date(r.date) })), [rawRaces]);
 
   const queryParams = new URLSearchParams(window.location.search);
   const [activeSeries, setActiveSeries] = useState(queryParams.get('series') || 'all');
@@ -283,7 +155,6 @@ export default function App() {
   const [viewMode, setViewMode] = useState('list');
   const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
 
-  // Состояния для модалки: список этапов дня и индекс выбранного
   const [dayRacesModal, setDayRacesModal] = useState(null);
   const [activeRaceIndex, setActiveRaceIndex] = useState(0);
 
@@ -296,14 +167,12 @@ export default function App() {
   const [standingsTab, setStandingsTab] = useState('drivers');
   const [standingsScope, setStandingsScope] = useState('race');
   
-  // Данные для модалки гонки
   const [driverStandings, setDriverStandings] = useState([]);
   const [teamStandings, setTeamStandings] = useState([]);
   const [cumulativeDrivers, setCumulativeDrivers] = useState([]);
   const [cumulativeTeams, setCumulativeTeams] = useState([]);
   const [standingsLoading, setStandingsLoading] = useState(false);
 
-  // Данные для глобальной модалки сезона
   const [showSeasonStandingsModal, setShowSeasonStandingsModal] = useState(false);
   const [seasonStandingsTab, setSeasonStandingsTab] = useState('drivers');
   const [seasonDrivers, setSeasonDrivers] = useState([]);
@@ -311,48 +180,12 @@ export default function App() {
   const [seasonLoading, setSeasonLoading] = useState(false);
 
   const nextRaceRef = useRef(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     const clock = setInterval(() => setCurrentTime(new Date()), 30000);
     return () => clearInterval(clock);
   }, []);
-
-  const fetchData = async () => {
-    setLoading(true); setError(null);
-    try {
-      const [racesRes, circuitsRes] = await Promise.all([
-        fetch(`${SUPABASE_URL}/rest/v1/races?select=*&order=date.asc`, {
-          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
-        }),
-        fetch(`${SUPABASE_URL}/rest/v1/circuits?select=*`, {
-          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
-        })
-      ]);
-
-      if (!racesRes.ok) throw new Error(racesRes.statusText);
-      const racesData = await racesRes.json();
-      
-      const cMap = {};
-      if (circuitsRes.ok) {
-        const circuitsData = await circuitsRes.json();
-        circuitsData.forEach(c => {
-          cMap[String(c.id)] = c;
-          cMap[c.name] = c;
-        });
-        setCircuitsMap(cMap);
-      }
-
-      if (racesData) {
-        setRaces(racesData.map(r => ({ ...r, parsedDate: new Date(r.date) })));
-      }
-    } catch (err) { 
-      setError(err.message); 
-    } finally { 
-      setLoading(false); 
-    }
-  };
-
-  useEffect(() => { fetchData(); }, []);
 
   const getCircuitInfo = (race) => {
     if (!race) return null;
@@ -387,7 +220,6 @@ export default function App() {
     return now >= start && now < end;
   };
 
-  // Месяцы, в которых РЕАЛЬНО есть хотя бы одна гонка
   const availableMonths = useMemo(() => {
     const monthsSet = new Set();
     races.forEach(r => {
@@ -400,7 +232,6 @@ export default function App() {
     return Array.from(monthsSet).sort((a, b) => a - b);
   }, [races, activeSeries, activeYear]);
 
-  // Коррекция выбранного месяца при переключении фильтров
   useEffect(() => {
     if (availableMonths.length > 0 && !availableMonths.includes(calMonth)) {
       setCalMonth(availableMonths[0]);
@@ -545,10 +376,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (nextRaceRef.current && !loading && viewMode === 'list') {
+    if (nextRaceRef.current && !racesLoading && viewMode === 'list') {
       setTimeout(() => nextRaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 500);
     }
-  }, [loading, viewMode]);
+  }, [racesLoading, viewMode]);
 
   const filteredRaces = useMemo(() => {
     return races.filter(r => {
@@ -598,7 +429,6 @@ export default function App() {
     setStandingsScope('race');
   };
 
-  // Календарная сетка месяца
   const calendarDays = useMemo(() => {
     const year = parseInt(activeYear, 10);
     const month = calMonth;
@@ -659,19 +489,16 @@ export default function App() {
                 {t.appTitle}
               </h1>
 
-              {/* Переключатель RU / EN в едином визуальном стиле */}
               <div className="flex bg-white/5 p-0.5 rounded-xl border border-white/10 text-xs">
                 <button
                   onClick={() => changeLanguage('ru')}
                   className={`px-2 py-1 rounded-lg font-bold transition-all ${lang === 'ru' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}
-                  title="Русский язык"
                 >
                   RU
                 </button>
                 <button
                   onClick={() => changeLanguage('en')}
                   className={`px-2 py-1 rounded-lg font-bold transition-all ${lang === 'en' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}
-                  title="English language"
                 >
                   EN
                 </button>
@@ -679,7 +506,6 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Переключатель Вид: Список / Календарь */}
               <div className="flex bg-white/5 p-0.5 rounded-xl border border-white/10 text-xs">
                 <button
                   onClick={() => setViewMode('list')}
@@ -697,8 +523,8 @@ export default function App() {
                 </button>
               </div>
 
-              <button onClick={fetchData} disabled={loading} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 hover:text-white transition-colors border border-white/10">
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <button onClick={refetch} disabled={racesLoading} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 hover:text-white transition-colors border border-white/10">
+                <RefreshCw className={`w-4 h-4 ${racesLoading ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
@@ -754,20 +580,19 @@ export default function App() {
         </header>
 
         <main className="p-4 space-y-4">
-          {loading ? (
+          {racesLoading ? (
             <div className="flex flex-col items-center justify-center py-20 space-y-4">
               <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
               <p className="text-gray-400 text-sm">{t.loading}</p>
             </div>
-          ) : error ? (
+          ) : racesError ? (
             <div className="bg-red-950/25 border border-red-500/30 rounded-2xl p-6 text-center space-y-2">
               <AlertCircle className="w-8 h-8 text-red-500 mx-auto" />
               <h3 className="text-lg font-semibold text-red-200">{t.errorTitle}</h3>
-              <p className="text-sm text-red-400 mx-auto">{error}</p>
+              <p className="text-sm text-red-400 mx-auto">{racesError.message}</p>
             </div>
           ) : (
             <>
-              {/* Блок Ближайшего / LIVE этапа */}
               {activeOrNextRace.race && (
                 <div className={`border rounded-3xl p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center transition-all ${
                   activeOrNextRace.isLive 
@@ -802,7 +627,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* СПИСОК КАРТОЧЕК */}
               {viewMode === 'list' && (
                 <>
                   {(() => {
@@ -911,7 +735,6 @@ export default function App() {
                 </>
               )}
 
-              {/* ИНТЕРАКТИВНЫЙ КАЛЕНДАРЬ МЕСЯЦА */}
               {viewMode === 'calendar' && (
                 <div className="bg-white/5 border border-white/10 rounded-3xl p-4 sm:p-6 shadow-2xl backdrop-blur-xl">
                   <div className="flex items-center justify-between mb-6">
@@ -923,7 +746,6 @@ export default function App() {
                         <ChevronLeft size={18} />
                       </button>
                       
-                      {/* Селектор содержит ТОЛЬКО месяцы с этапами */}
                       <select 
                         value={calMonth} 
                         onChange={(e) => setCalMonth(parseInt(e.target.value, 10))}
@@ -989,7 +811,6 @@ export default function App() {
                             )}
                           </div>
 
-                          {/* Компактные плашки гонок в ячейке дня */}
                           <div className="flex flex-col gap-1 mt-1 w-full">
                             {item.races.map((r, rIdx) => {
                               const sCfg = SERIES_CONFIG[r.series.toLowerCase()] || SERIES_CONFIG.all;
@@ -1021,7 +842,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* МОДАЛКА ЭТАПА (С ПОДДЕРЖКОЙ НЕСКОЛЬКИХ ЭТАПОВ В ОДИН ДЕНЬ) */}
       {selectedRace && (() => {
         const cInfo = getCircuitInfo(selectedRace);
         const currentLive = isRaceLive(selectedRace);
@@ -1042,7 +862,6 @@ export default function App() {
               
               <button onClick={() => setDayRacesModal(null)} className="absolute top-5 right-5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors z-20"><X size={20} /></button>
 
-              {/* Мульти-селектор этапов дня, если заездов >= 2 */}
               {hasMultipleRaces && (
                 <div className="mb-4 pr-10">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">
@@ -1105,7 +924,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Характеристики трассы */}
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
                   <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Ruler size={14}/> {t.trackLength}</div>
@@ -1128,7 +946,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Результаты этапа */}
               {(isPastRace || currentLive) && isF1 && (
                 <div className="mb-6 bg-black/40 border border-white/5 rounded-2xl p-4 overflow-hidden transition-all duration-300 min-h-[160px] relative">
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -1242,7 +1059,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* Блок Времени и Добавления в календарь */}
               {!isPastRace && !currentLive && (
                 <div className="bg-indigo-950/20 border border-indigo-500/20 rounded-2xl p-4 flex justify-between items-center relative overflow-hidden">
                    <div>
@@ -1279,7 +1095,6 @@ export default function App() {
         );
       })()}
 
-      {/* ГЛОБАЛЬНАЯ МОДАЛКА СТЕНДИНГА СЕЗОНА */}
       {showSeasonStandingsModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 pointer-events-none">
           <div 
