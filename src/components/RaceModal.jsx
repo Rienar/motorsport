@@ -12,39 +12,11 @@ export const RaceModal = ({
   isPastRace, isF1, standingsScope, setStandingsScope, 
   standingsLoading, activeList, isStandingsExpanded, setIsStandingsExpanded, 
   standingsTab, setStandingsTab, driverStandings, cumulativeDrivers, 
-  lang, t 
+  handleAddToCalendar, lang, t 
 }) => {
   if (!selectedRace) return null;
 
   const hasMultipleRaces = dayRacesModal && dayRacesModal.length > 1;
-
-  // Функция добавления в календарь (Google / .ics)
-  const handleAddToCalendar = (e, type, race) => {
-    e.stopPropagation();
-    const start = race.parsedDate;
-    const end = new Date(start.getTime() + (2 * 60 * 60 * 1000)); 
-    const title = `${race.name} (${race.series.toUpperCase()})`;
-    const loc = `${cInfo?.name || race.circuit}, ${race.country}`;
-    const formatD = d => d.toISOString().replace(/-|:|\.\d+/g, '');
-
-    if (type === 'google') {
-      const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${formatD(start)}/${formatD(end)}&location=${encodeURIComponent(loc)}`;
-      window.open(url, '_blank');
-    } else if (type === 'ics') {
-      const ics = [
-        "BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT",
-        `SUMMARY:${title}`, `DTSTART:${formatD(start)}`, `DTEND:${formatD(end)}`, `LOCATION:${loc}`,
-        "END:VEVENT", "END:VCALENDAR"
-      ].join("\n");
-      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-      const link = document.createElement('a');
-      link.href = window.URL.createObjectURL(blob);
-      link.download = `${race.name.replace(/\s+/g, '_')}.ics`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
