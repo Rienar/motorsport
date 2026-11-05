@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { MapPin, Clock, Timer, X, Gauge, Ruler, Cloud, Navigation, Trophy, RefreshCw, AlertCircle, CalendarPlus, Download, ChevronDown, ChevronUp, Users, User } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { MapPin, Clock, Timer, X, Gauge, Ruler, Cloud, Navigation, Trophy, RefreshCw, AlertCircle, CalendarPlus, Download, ChevronDown, ChevronUp, Users, User, Loader2 } from 'lucide-react';
 
 const SUPABASE_URL = 'https://qugdovsytjqjawsesdix.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_DrPG1dGhbIWU2EARd9v88g_X3c_pPvX';
@@ -18,25 +18,6 @@ const MONTHS = [
   { value: '4', label: 'Апр' }, { value: '5', label: 'Май' }, { value: '6', label: 'Июн' }, { value: '7', label: 'Июл' }, 
   { value: '8', label: 'Авг' }, { value: '9', label: 'Сен' }, { value: '10', label: 'Окт' }, { value: '11', label: 'Ноя' }, { value: '12', label: 'Дек' },
 ];
-
-// МОКОВЫЕ ДАННЫЕ СТЕНДИНГА (Позже замените на вызов из Supabase)
-const MOCK_F1_STANDINGS = {
-  drivers: [
-    { pos: 1, name: "Макс Ферстаппен", team: "Red Bull", points: 395 },
-    { pos: 2, name: "Ландо Норрис", team: "McLaren", points: 330 },
-    { pos: 3, name: "Шарль Леклер", team: "Ferrari", points: 315 },
-    { pos: 4, name: "Оскар Пиастри", team: "McLaren", points: 260 },
-    { pos: 5, name: "Карлос Сайнс", team: "Ferrari", points: 245 },
-    { pos: 6, name: "Льюис Хэмилтон", team: "Mercedes", points: 190 },
-  ],
-  teams: [
-    { pos: 1, name: "McLaren Mercedes", points: 590 },
-    { pos: 2, name: "Ferrari", points: 560 },
-    { pos: 3, name: "Red Bull Racing", points: 530 },
-    { pos: 4, name: "Mercedes", points: 350 },
-    { pos: 5, name: "Aston Martin", points: 90 },
-  ]
-};
 
 const CountdownTimer = ({ targetDate }) => {
   const [tl, setTl] = useState({ d: 0, h: '00', m: '00', s: '00' });
@@ -133,12 +114,16 @@ export default function App() {
   const [showPast, setShowPast] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   
-  // Состояния для модального окна
   const [selectedRace, setSelectedRace] = useState(null);
   const [isStandingsExpanded, setIsStandingsExpanded] = useState(false);
-  const [standingsTab, setStandingsTab] = useState('drivers'); // 'drivers' или 'teams'
+  const [standingsTab, setStandingsTab] = useState('drivers');
   
-  const nextRaceRef = React.useRef(null);
+  // Новые состояния для данных из БД
+  const [driverStandings, setDriverStandings] = useState([]);
+  const [teamStandings, setTeamStandings] = useState([]);
+  const [standingsLoading, setStandingsLoading] = useState(false);
+
+  const nextRaceRef = useRef(null);
 
   const fetchRaces = async () => {
     setLoading(true); setError(null);
@@ -154,6 +139,29 @@ export default function App() {
   };
 
   useEffect(() => { fetchRaces(); }, []);
+
+  // Динамическая подгрузка стендингов из БД при открытии прошедшей гонки F1
+  useEffect(() => {
+    if (selectedRace && selectedRace.parsedDate < new Date() && selectedRace.series.toLowerCase() === 'f1') {
+      setStandingsLoading(true);
+      Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/driver_results?race_id=eq.${selectedRace.id}&order=position.asc`, { 
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } 
+        }),
+        fetch(`${SUPABASE_URL}/rest/v1/team_results?race_id=eq.${selectedRace.id}&order=position.asc`, { 
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } 
+        })
+      ]).then(async ([dRes, tRes]) => {
+        if (dRes.ok && tRes.ok) {
+          setDriverStandings(await dRes.json());
+          setTeamStandings(await tRes.json());
+        }
+      }).catch(console.error).finally(() => setStandingsLoading(false));
+    } else {
+      setDriverStandings([]);
+      setTeamStandings([]);
+    }
+  }, [selectedRace]);
 
   const nextRace = useMemo(() => races.filter(r => r.parsedDate > new Date()).sort((a, b) => a.parsedDate - b.parsedDate)[0] || null, [races]);
 
@@ -186,11 +194,9 @@ export default function App() {
     }).sort((a, b) => a.parsedDate - b.parsedDate);
   }, [races, activeSeries, activeYear, activeMonth, showPast]);
 
-  // Функция добавления в календарь
   const handleAddToCalendar = (e, type, race) => {
     e.stopPropagation();
     const start = race.parsedDate;
-    // Примерно закладываем 2 часа на гонку
     const end = new Date(start.getTime() + 2 * 60 * 60 * 1000); 
     const title = `${race.name} (${race.series.toUpperCase()})`;
     const loc = `${race.circuit}, ${race.country}`;
@@ -217,7 +223,7 @@ export default function App() {
 
   const openModal = (race) => {
     setSelectedRace(race);
-    setIsStandingsExpanded(false); // Сбрасываем состояния стендинга при открытии нового окна
+    setIsStandingsExpanded(false);
     setStandingsTab('drivers');
   };
 
@@ -372,7 +378,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* МОДАЛЬНОЕ ОКНО */}
       {selectedRace && (() => {
         const track = getTrackDetails(selectedRace.circuit);
         const isPastRace = selectedRace.parsedDate < new Date();
@@ -399,7 +404,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Плашки со статистикой */}
               <div className="grid grid-cols-2 gap-3 mb-6">
                 {[
                   { icon: Ruler, label: 'Длина', val: track.length },
@@ -417,82 +421,89 @@ export default function App() {
                 </div>
               </div>
 
-              {/* СТЕНДИНГ F1 (Если гонка прошла) */}
+              {/* СТЕНДИНГ F1 ИЗ БАЗЫ ДАННЫХ */}
               {isPastRace && isF1 && (
-                <div className="mb-6 bg-black/40 border border-white/5 rounded-2xl p-4 overflow-hidden transition-all duration-300">
+                <div className="mb-6 bg-black/40 border border-white/5 rounded-2xl p-4 overflow-hidden transition-all duration-300 min-h-[150px] relative">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
                       <Trophy size={16} className="text-yellow-500"/> Итоги этапа
                     </h3>
                   </div>
                   
-                  {!isStandingsExpanded ? (
-                    // Свернутый вид: Топ-3
-                    <div className="space-y-4">
-                      <div>
-                        <div className="text-[10px] uppercase text-gray-500 font-bold mb-2">Пилоты (Топ-3)</div>
-                        {MOCK_F1_STANDINGS.drivers.slice(0, 3).map((d) => (
-                          <div key={d.name} className="flex justify-between items-center text-sm py-1 border-b border-white/5 last:border-0">
-                            <div className="flex gap-3 items-center"><span className="text-gray-500 font-bold w-3">{d.pos}</span><span className="text-white">{d.name}</span></div>
-                            <span className="text-gray-400 text-xs">{d.team}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <button 
-                        onClick={() => setIsStandingsExpanded(true)}
-                        className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-semibold text-gray-300 transition-colors flex items-center justify-center gap-1"
-                      >
-                        Полный зачет <ChevronDown size={14} />
-                      </button>
+                  {standingsLoading ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-10 rounded-2xl">
+                      <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
                     </div>
+                  ) : driverStandings.length === 0 ? (
+                    <div className="text-center text-gray-500 text-xs py-4">Результаты еще не добавлены</div>
                   ) : (
-                    // Развернутый вид: Полный зачет с табами
-                    <div className="space-y-4" style={{ animation: 'fadeIn 0.3s ease-out forwards' }}>
-                      <div className="flex bg-white/5 p-1 rounded-xl">
-                        <button onClick={() => setStandingsTab('drivers')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 ${standingsTab === 'drivers' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}><User size={14}/> Пилоты</button>
-                        <button onClick={() => setStandingsTab('teams')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 ${standingsTab === 'teams' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Users size={14}/> Команды</button>
-                      </div>
-
-                      <div className="max-h-48 overflow-y-auto hide-scrollbar pr-1">
-                        {(standingsTab === 'drivers' ? MOCK_F1_STANDINGS.drivers : MOCK_F1_STANDINGS.teams).map((item) => (
-                          <div key={item.name} className="flex justify-between items-center text-sm py-2 border-b border-white/5 last:border-0">
-                            <div className="flex gap-3 items-center">
-                              <span className={`font-bold w-4 ${item.pos === 1 ? 'text-yellow-500' : item.pos === 2 ? 'text-gray-300' : item.pos === 3 ? 'text-orange-400' : 'text-gray-600'}`}>{item.pos}</span>
-                              <div>
-                                <div className="text-white font-medium">{item.name}</div>
-                                {item.team && <div className="text-[10px] text-gray-500 uppercase">{item.team}</div>}
+                    <>
+                      {!isStandingsExpanded ? (
+                        <div className="space-y-4">
+                          <div>
+                            <div className="text-[10px] uppercase text-gray-500 font-bold mb-2">Пилоты (Топ-3)</div>
+                            {driverStandings.slice(0, 3).map((d) => (
+                              <div key={d.id} className="flex justify-between items-center text-sm py-1 border-b border-white/5 last:border-0">
+                                <div className="flex gap-3 items-center"><span className="text-gray-500 font-bold w-3">{d.position}</span><span className="text-white">{d.driver_name}</span></div>
+                                <span className="text-gray-400 text-xs">{d.team_name}</span>
                               </div>
-                            </div>
-                            <span className="text-indigo-300 font-bold">{item.points} <span className="text-[10px] text-indigo-500/50">PTS</span></span>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                          <button 
+                            onClick={() => setIsStandingsExpanded(true)}
+                            className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-semibold text-gray-300 transition-colors flex items-center justify-center gap-1"
+                          >
+                            Полный зачет <ChevronDown size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4" style={{ animation: 'fadeIn 0.3s ease-out forwards' }}>
+                          <div className="flex bg-white/5 p-1 rounded-xl">
+                            <button onClick={() => setStandingsTab('drivers')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 ${standingsTab === 'drivers' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}><User size={14}/> Пилоты</button>
+                            <button onClick={() => setStandingsTab('teams')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 ${standingsTab === 'teams' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Users size={14}/> Команды</button>
+                          </div>
 
-                      <button 
-                        onClick={() => setIsStandingsExpanded(false)}
-                        className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-semibold text-gray-300 transition-colors flex items-center justify-center gap-1"
-                      >
-                        Свернуть <ChevronUp size={14} />
-                      </button>
-                    </div>
+                          <div className="max-h-48 overflow-y-auto hide-scrollbar pr-1">
+                            {(standingsTab === 'drivers' ? driverStandings : teamStandings).map((item) => (
+                              <div key={item.id} className="flex justify-between items-center text-sm py-2 border-b border-white/5 last:border-0">
+                                <div className="flex gap-3 items-center">
+                                  <span className={`font-bold w-4 ${item.position === 1 ? 'text-yellow-500' : item.position === 2 ? 'text-gray-300' : item.position === 3 ? 'text-orange-400' : 'text-gray-600'}`}>{item.position}</span>
+                                  <div>
+                                    <div className="text-white font-medium">{item.driver_name || item.team_name}</div>
+                                    {item.driver_name && <div className="text-[10px] text-gray-500 uppercase">{item.team_name}</div>}
+                                  </div>
+                                </div>
+                                <span className="text-indigo-300 font-bold">{item.points} <span className="text-[10px] text-indigo-500/50">PTS</span></span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <button 
+                            onClick={() => setIsStandingsExpanded(false)}
+                            className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-semibold text-gray-300 transition-colors flex items-center justify-center gap-1"
+                          >
+                            Свернуть <ChevronUp size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
 
-              {/* Блок Времени и Добавления в календарь */}
-              <div className="bg-indigo-950/20 border border-indigo-500/20 rounded-2xl p-4 flex justify-between items-center relative overflow-hidden">
-                 <div>
-                    <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                      <Clock size={12} /> {isPastRace ? 'Старт был в' : 'Ваше время'}
-                    </div>
-                    <div className="text-2xl font-extrabold text-indigo-200">
-                      {selectedRace.parsedDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </div>
-                    <div className="text-[10px] text-gray-500 font-bold uppercase mt-1 tracking-wider">Местное: {selectedRace.time}</div>
-                 </div>
-                 
-                 {/* Кнопки календаря (Показываем только для предстоящих гонок) */}
-                 {!isPastRace && (
+              {/* Блок Времени и Добавления в календарь отображается ТОЛЬКО если гонка не прошла */}
+              {!isPastRace && (
+                <div className="bg-indigo-950/20 border border-indigo-500/20 rounded-2xl p-4 flex justify-between items-center relative overflow-hidden">
+                   <div>
+                      <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <Clock size={12} /> Ваше время
+                      </div>
+                      <div className="text-2xl font-extrabold text-indigo-200">
+                        {selectedRace.parsedDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </div>
+                      <div className="text-[10px] text-gray-500 font-bold uppercase mt-1 tracking-wider">Местное: {selectedRace.time}</div>
+                   </div>
+                   
                    <div className="flex items-center gap-2 z-10">
                       <button 
                         onClick={(e) => handleAddToCalendar(e, 'google', selectedRace)}
@@ -509,8 +520,8 @@ export default function App() {
                         <Download size={18} />
                       </button>
                    </div>
-                 )}
-              </div>
+                </div>
+              )}
 
             </div>
           </div>
