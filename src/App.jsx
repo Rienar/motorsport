@@ -1,3 +1,12 @@
+/**
+ * ============================================================================
+ * ФАЙЛ: src/App.jsx
+ * Описание: Главный компонент приложения календаря автоспорта.
+ * Оркеструет данные из Supabase, управление состоянием (серия, год, месяц),
+ * переключение представлений (список / календарь) и модальные окна.
+ * ============================================================================
+ */
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Timer, AlertCircle, Radio
@@ -12,9 +21,13 @@ import { RaceModal } from './components/RaceModal';
 import { SeasonModal } from './components/SeasonModal';
 import { SeasonTracker } from './components/SeasonTracker';
 
+// Константы подключения к Supabase
 const SUPABASE_URL = 'https://qugdovsytjqjawsesdix.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_DrPG1dGhbIWU2EARd9v88g_X3c_pPvX';
 
+/**
+ * Вспомогательная функция: расчет длительности гонки в мс в зависимости от серии
+ */
 const getRaceDurationMs = (race) => {
   const s = race.series?.toLowerCase() || '';
   const name = race.name?.toLowerCase() || '';
@@ -31,6 +44,9 @@ const getRaceDurationMs = (race) => {
   return 2 * 60 * 60 * 1000;
 };
 
+/**
+ * Компонент: Секундомер для гонок в режиме LIVE
+ */
 const LiveStopwatch = ({ startDate, t }) => {
   const [elapsed, setElapsed] = useState({ h: '00', m: '00', s: '00' });
 
@@ -61,6 +77,9 @@ const LiveStopwatch = ({ startDate, t }) => {
 };
 
 export default function App() {
+  /**
+   * 1. СОСТОЯНИЯ И ЛОКАЛИЗАЦИЯ
+   */
   const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'ru');
   const t = useMemo(() => TRANSLATIONS[lang] || TRANSLATIONS.ru, [lang]);
 
@@ -70,20 +89,24 @@ export default function App() {
     localStorage.setItem('app_lang', nextLang);
   };
 
+  // Запросы данных из Supabase (React Query)
   const { data: rawRaces = [], isLoading: racesLoading, error: racesError, refetch } = useRaces();
   const { data: circuitsMap = {} } = useCircuits();
 
+  // Парсинг дат гонок
   const races = useMemo(() => rawRaces.map(r => ({ ...r, parsedDate: new Date(r.date) })), [rawRaces]);
 
+  // Параметры фильтрации из URL и стейта
   const queryParams = new URLSearchParams(window.location.search);
   const [activeSeries, setActiveSeries] = useState(queryParams.get('series') || 'all');
   const [activeYear, setActiveYear] = useState(queryParams.get('year') || '2026');
   const [activeMonth, setActiveMonth] = useState(queryParams.get('month') || 'all');
   const [showPast, setShowPast] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [viewMode, setViewMode] = useState('list');
+  const [viewMode, setViewMode] = useState('list'); // 'list' или 'calendar'
   const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
 
+  // Состояния модальных окон
   const [dayRacesModal, setDayRacesModal] = useState(null);
   const [activeRaceIndex, setActiveRaceIndex] = useState(0);
 
@@ -92,6 +115,7 @@ export default function App() {
     return dayRacesModal[activeRaceIndex] || dayRacesModal[0];
   }, [dayRacesModal, activeRaceIndex]);
 
+  // Состояния для турнирных таблиц и статистики
   const [isStandingsExpanded, setIsStandingsExpanded] = useState(false);
   const [standingsTab, setStandingsTab] = useState('drivers');
   const [standingsScope, setStandingsScope] = useState('race');
@@ -111,11 +135,15 @@ export default function App() {
   const nextRaceRef = useRef(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
+  // Периодическое обновление текущего времени (каждые 30 сек)
   useEffect(() => {
     const clock = setInterval(() => setCurrentTime(new Date()), 30000);
     return () => clearInterval(clock);
   }, []);
 
+  /**
+   * 2. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ И РАСЧЕТЫ
+   */
   const getCircuitInfo = (race) => {
     if (!race) return null;
     return circuitsMap[String(race.circuit_id)] || circuitsMap[race.circuit] || {
@@ -149,6 +177,7 @@ export default function App() {
     return now >= start && now < end;
   };
 
+  // Доступные месяцы для текущего фильтра
   const availableMonths = useMemo(() => {
     const monthsSet = new Set();
     races.forEach(r => {
@@ -187,6 +216,7 @@ export default function App() {
     }
   };
 
+  // Загрузка результатов F1 при открытии модального окна гонки
   useEffect(() => {
     let isCancelled = false;
     if (selectedRace && (selectedRace.parsedDate < new Date() || isRaceLive(selectedRace)) && selectedRace.series.toLowerCase() === 'f1') {
@@ -283,6 +313,7 @@ export default function App() {
     }
   };
 
+  // Определение текущей или ближайшей гонки для режима "Все"
   const activeOrNextRace = useMemo(() => {
     const live = races.find(r => isRaceLive(r));
     if (live) return { race: live, isLive: true };
@@ -290,6 +321,7 @@ export default function App() {
     return { race: upcoming, isLive: false };
   }, [races, currentTime]);
 
+  // Синхронизация параметров с URL
   useEffect(() => {
     const p = new URLSearchParams();
     if (activeSeries !== 'all') p.set('series', activeSeries);
@@ -304,12 +336,7 @@ export default function App() {
     return () => window.removeEventListener('resize', checkDev);
   }, []);
 
-  useEffect(() => {
-    if (nextRaceRef.current && !racesLoading && viewMode === 'list') {
-      setTimeout(() => nextRaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 500);
-    }
-  }, [racesLoading, viewMode]);
-
+  // Фильтрация гонок для списочного представления
   const filteredRaces = useMemo(() => {
     return races.filter(r => {
       const isLive = isRaceLive(r);
@@ -321,6 +348,7 @@ export default function App() {
     }).sort((a, b) => a.parsedDate - b.parsedDate);
   }, [races, activeSeries, activeYear, activeMonth, showPast, currentTime]);
 
+  // Экспорт / добавление в календарь (Google Calendar или .ics файл)
   const handleAddToCalendar = (e, type, race) => {
     e.stopPropagation();
     const cInfo = getCircuitInfo(race);
@@ -358,6 +386,7 @@ export default function App() {
     setStandingsScope('race');
   };
 
+  // Расчет сетки для режима календаря
   const calendarDays = useMemo(() => {
     const year = parseInt(activeYear, 10);
     const month = calMonth;
@@ -398,6 +427,9 @@ export default function App() {
     });
   }, [activeYear, calMonth, races, activeSeries]);
 
+  /**
+   * 3. ОСНОВНОЙ РЕНДЕР ПРИЛОЖЕНИЯ
+   */
   return (
     <div className={`min-h-screen bg-black text-white font-sans selection:bg-red-500 pb-10 flex justify-center ${isDesktop ? 'items-center bg-[#050505] py-8' : ''}`}>
       <style>{`
@@ -407,7 +439,10 @@ export default function App() {
         .hide-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
 
+      {/* Обертка приложения (мобильная или контейнерная под десктоп) */}
       <div className={isDesktop ? 'w-full max-w-xl mx-auto rounded-3xl border border-white/10 shadow-2xl overflow-hidden bg-black min-h-[90vh]' : 'w-full max-w-full'} style={{ animation: 'appEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
+        
+        {/* Хедер с фильтрами, переключением языка, года и режимов */}
         <Header 
           t={t} lang={lang} onToggleLang={changeLanguage}
           activeSeries={activeSeries} setActiveSeries={setActiveSeries}
@@ -419,13 +454,16 @@ export default function App() {
           onOpenSeason={fetchGlobalSeasonStandings}
         />
 
+        {/* Основной контент */}
         <main className="p-4 space-y-4">
           {racesLoading ? (
+            /* Состояние загрузки */
             <div className="flex flex-col items-center justify-center py-20 space-y-4">
               <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
               <p className="text-gray-400 text-sm">{t.loading}</p>
             </div>
           ) : racesError ? (
+            /* Состояние ошибки */
             <div className="bg-red-950/25 border border-red-500/30 rounded-2xl p-6 text-center space-y-2">
               <AlertCircle className="w-8 h-8 text-red-500 mx-auto" />
               <h3 className="text-lg font-semibold text-red-200">{t.errorTitle}</h3>
@@ -433,6 +471,7 @@ export default function App() {
             </div>
           ) : (
             <>
+              {/* БЛОК ВИДЖЕТА ВВЕРХУ (Таймер ближайшей гонки для "ВСЕ" или SeasonTracker для конкретной серии) */}
               {activeSeries === 'all' ? (
                 activeOrNextRace.race && (
                   <div className={`border rounded-3xl p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center transition-all ${
@@ -443,6 +482,7 @@ export default function App() {
                     <Timer className="absolute -right-6 -bottom-6 w-40 h-40 text-white/5 pointer-events-none" />
                     <div className="relative z-10">
                       
+                      {/* Шапка виджета: бейдж серии, статус и название в одну строку */}
                       <div className="flex items-center justify-between gap-3 mb-3">
                         <div className="flex items-center gap-2 min-w-0">
                            <span className={`shrink-0 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${SERIES_CONFIG[activeOrNextRace.race.series]?.activeClass || 'bg-white/20 text-white'}`}>
@@ -465,6 +505,7 @@ export default function App() {
                         </h2>
                       </div>
                       
+                      {/* Таймер обратного отсчета или Live-секундомер */}
                       {activeOrNextRace.isLive ? (
                         <LiveStopwatch startDate={activeOrNextRace.race.parsedDate} t={t} />
                       ) : (
@@ -492,10 +533,12 @@ export default function App() {
                   currentTime={currentTime}
                   lang={lang}
                   t={t}
+                  activeYear={activeYear}
                   onSelectRace={(race) => openDayModal([race])}
                 />
               )}
 
+              {/* СПИСОК ГОНОК (Режим списка) */}
               {viewMode === 'list' && (
                 <>
                   {(() => {
@@ -539,6 +582,7 @@ export default function App() {
                 </>
               )}
 
+              {/* КАЛЕНДАРНОЕ ПРЕДСТАВЛЕНИЕ (Режим сетки календаря) */}
               {viewMode === 'calendar' && (
                 <CalendarView 
                   activeYear={activeYear}
@@ -559,6 +603,10 @@ export default function App() {
         </main>
       </div>
 
+      {/**
+       * 4. МОДАЛЬНЫЕ ОКНА
+       */}
+      {/* Модальное окно деталей гонки и результатов */}
       <RaceModal 
         dayRacesModal={dayRacesModal}
         activeRaceIndex={activeRaceIndex}
@@ -584,6 +632,7 @@ export default function App() {
         t={t}
       />
 
+      {/* Модальное окно общих итогов сезона */}
       <SeasonModal 
         showSeasonStandingsModal={showSeasonStandingsModal}
         setShowSeasonStandingsModal={setShowSeasonStandingsModal}
