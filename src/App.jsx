@@ -124,15 +124,14 @@ export default function App() {
   const [standingsTab, setStandingsTab] = useState('drivers'); // 'drivers' | 'teams'
   const [standingsScope, setStandingsScope] = useState('race'); // 'race' | 'cumulative'
   
-  // Результаты конкретной гонки
+  // Данные для модалки гонки
   const [driverStandings, setDriverStandings] = useState([]);
   const [teamStandings, setTeamStandings] = useState([]);
-  // Результаты с нарастающим итогом на момент этапа
   const [cumulativeDrivers, setCumulativeDrivers] = useState([]);
   const [cumulativeTeams, setCumulativeTeams] = useState([]);
   const [standingsLoading, setStandingsLoading] = useState(false);
 
-  // Состояние глобальной модалки турнирной таблицы (Вариант 2)
+  // Данные для глобальной модалки сезона (Вариант 2)
   const [showSeasonStandingsModal, setShowSeasonStandingsModal] = useState(false);
   const [seasonStandingsTab, setSeasonStandingsTab] = useState('drivers');
   const [seasonDrivers, setSeasonDrivers] = useState([]);
@@ -156,7 +155,6 @@ export default function App() {
 
   useEffect(() => { fetchRaces(); }, []);
 
-  // Вспомогательный расчет суммы очков
   const aggregateResults = (data, keyField) => {
     const map = {};
     data.forEach(item => {
@@ -176,7 +174,6 @@ export default function App() {
     if (selectedRace && selectedRace.parsedDate < new Date() && selectedRace.series.toLowerCase() === 'f1') {
       setStandingsLoading(true);
 
-      // Находим все гонки F1 того же года до текущей включительно
       const pastF1RacesUpToCurrent = races
         .filter(r => r.series.toLowerCase() === 'f1' && 
                      r.parsedDate.getFullYear() === selectedRace.parsedDate.getFullYear() && 
@@ -186,14 +183,12 @@ export default function App() {
       const pastIdsQuery = `in.(${pastF1RacesUpToCurrent.join(',')})`;
 
       Promise.all([
-        // Данные текущей гонки
         fetch(`${SUPABASE_URL}/rest/v1/driver_results?race_id=eq.${selectedRace.id}&order=position.asc`, { 
           headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } 
         }).then(r => r.json()),
         fetch(`${SUPABASE_URL}/rest/v1/team_results?race_id=eq.${selectedRace.id}&order=position.asc`, { 
           headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } 
         }).then(r => r.json()),
-        // Данные всех гонок до текущей включительно (для нарастающего итога)
         fetch(`${SUPABASE_URL}/rest/v1/driver_results?race_id=${pastIdsQuery}`, { 
           headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } 
         }).then(r => r.json()),
@@ -232,7 +227,7 @@ export default function App() {
     }
   }, [selectedRace, races]);
 
-  // Загрузка глобального стендинга сезона для Варианта 2
+  // Загрузка глобального стендинга сезона для кнопки в шапке
   const fetchGlobalSeasonStandings = async () => {
     setShowSeasonStandingsModal(true);
     setSeasonLoading(true);
@@ -504,7 +499,6 @@ export default function App() {
         const isPastRace = selectedRace.parsedDate < new Date();
         const isF1 = selectedRace.series.toLowerCase() === 'f1';
 
-        // Определяем активный набор данных для отображения
         const activeList = standingsScope === 'race'
           ? (standingsTab === 'drivers' ? driverStandings : teamStandings)
           : (standingsTab === 'drivers' ? cumulativeDrivers : cumulativeTeams);
@@ -530,7 +524,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Характеристики автодрома */}
+              {/* Характеристики трассы */}
               <div className="grid grid-cols-2 gap-3 mb-6">
                 {[
                   { icon: Ruler, label: 'Длина', val: track.length },
@@ -548,11 +542,11 @@ export default function App() {
                 </div>
               </div>
 
-              {/* БЛОК РЕЗУЛЬТАТОВ F1 */}
+              {/* РЕЗУЛЬТАТЫ F1 */}
               {isPastRace && isF1 && (
                 <div className="mb-6 bg-black/40 border border-white/5 rounded-2xl p-4 overflow-hidden transition-all duration-300 min-h-[160px] relative">
                   
-                  {/* Заголовок и переключатель: Этап / Нарастающий итог */}
+                  {/* Заголовок и тумблер: Этап / Нарастающий итог */}
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                     <h3 className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
                       <Trophy size={15} className="text-amber-400"/> 
@@ -733,23 +727,31 @@ export default function App() {
               <p className="text-gray-400 text-xs mt-1">Текущий общий зачёт по сумме всех завершённых этапов</p>
             </div>
 
-            {/* Табы Пилоты / Команды */}
-            <div className="flex bg-white/5 p-1 rounded-xl mb-3 shrink-0">
+            {/* Переключатель табов: полупрозрачный фон, рамка и свечение */}
+            <div className="flex bg-white/[0.08] p-1.5 rounded-2xl border border-white/10 mb-4 shrink-0 shadow-inner">
               <button 
                 onClick={() => setSeasonStandingsTab('drivers')} 
-                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${seasonStandingsTab === 'drivers' ? 'bg-amber-500 text-black shadow-md' : 'text-gray-400 hover:text-white'}`}
+                className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                  seasonStandingsTab === 'drivers' 
+                    ? 'bg-amber-500 text-black shadow-[0_0_18px_rgba(245,158,11,0.45)]' 
+                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                }`}
               >
                 <User size={14}/> Личный зачёт
               </button>
               <button 
                 onClick={() => setSeasonStandingsTab('teams')} 
-                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${seasonStandingsTab === 'teams' ? 'bg-amber-500 text-black shadow-md' : 'text-gray-400 hover:text-white'}`}
+                className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                  seasonStandingsTab === 'teams' 
+                    ? 'bg-amber-500 text-black shadow-[0_0_18px_rgba(245,158,11,0.45)]' 
+                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                }`}
               >
                 <Users size={14}/> Кубок конструкторов
               </button>
             </div>
 
-            {/* Список зачета */}
+            {/* Список зачета с индиго-акцентом для очков */}
             <div className="flex-1 overflow-y-auto hide-scrollbar divide-y divide-white/5 pr-1">
               {seasonLoading ? (
                 <div className="flex flex-col items-center justify-center py-16 space-y-3">
@@ -760,9 +762,13 @@ export default function App() {
                 <div className="text-center text-gray-500 text-xs py-12">В этом сезоне еще нет завершенных гонок</div>
               ) : (
                 (seasonStandingsTab === 'drivers' ? seasonDrivers : seasonTeams).map((item) => (
-                  <div key={item.driver_name || item.team_name} className="flex justify-between items-center py-2.5 px-2 hover:bg-white/[0.02] rounded-xl transition-colors">
+                  <div key={item.driver_name || item.team_name} className="flex justify-between items-center py-2.5 px-2 hover:bg-white/[0.03] rounded-xl transition-colors">
                     <div className="flex items-center gap-3">
-                      <span className={`w-5 text-center font-bold text-sm ${item.position === 1 ? 'text-amber-400' : item.position === 2 ? 'text-gray-300' : item.position === 3 ? 'text-amber-600' : 'text-gray-500'}`}>
+                      <span className={`w-5 text-center font-bold text-sm ${
+                        item.position === 1 ? 'text-amber-400' : 
+                        item.position === 2 ? 'text-gray-300' : 
+                        item.position === 3 ? 'text-amber-600' : 'text-gray-500'
+                      }`}>
                         {item.position}
                       </span>
                       <div>
@@ -770,9 +776,9 @@ export default function App() {
                         {item.driver_name && <div className="text-[10px] text-gray-400 uppercase tracking-wider">{item.team_name}</div>}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className="text-amber-300 font-extrabold text-sm">{item.points}</span>
-                      <span className="text-[10px] text-amber-500/60 ml-1 font-bold">PTS</span>
+                    <div className="text-right flex items-baseline gap-1">
+                      <span className="text-indigo-300 font-extrabold text-sm sm:text-base">{item.points}</span>
+                      <span className="text-[10px] text-indigo-400/70 font-bold uppercase tracking-wider">PTS</span>
                     </div>
                   </div>
                 ))
