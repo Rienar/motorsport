@@ -15,9 +15,7 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
     const now = currentTime.getTime();
     let nextIndex = seriesRaces.findIndex(r => r.parsedDate.getTime() > now);
     
-    // Проверяем, есть ли еще гонки в этом году (или вообще в списке)
     const hasUpcomingRaces = nextIndex !== -1;
-    
     if (!hasUpcomingRaces) {
       nextIndex = seriesRaces.length;
     }
@@ -40,7 +38,6 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
         subtitle = lang === 'ru' ? `Далее: ${nextRace.name} (${timeStr})` : `Next: ${nextRace.name} (${timeStr})`;
       }
     } else {
-      // Сообщение, если гонки в данном сезоне завершены
       subtitle = lang === 'ru' ? '🏁 Гонки в этом сезоне завершены' : '🏁 Races this season are completed';
     }
 
@@ -54,21 +51,22 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
     };
   }, [seriesRaces, currentTime, lang]);
 
-  if (!trackerData) return null;
+  // Если для выбранной категории в этом году нет гонок — ничего не выводим (или выводим заглушку)
+  if (!trackerData || trackerData.totalRounds === 0) {
+    return (
+      <div className="border border-white/10 rounded-3xl p-5 mb-6 text-center text-gray-500 bg-white/[0.02] text-xs">
+        {lang === 'ru' ? 'Нет данных о гонках в этом сезоне' : 'No race data available for this season'}
+      </div>
+    );
+  }
 
-  // Динамический подбор цвета активной точки под выбранную серию гонок
   const getActiveDotStyle = (seriesKey) => {
     switch (seriesKey?.toLowerCase()) {
-      case 'f1':
-        return 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)] animate-pulse';
-      case 'wec':
-        return 'bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.8)] animate-pulse';
-      case 'dtm':
-        return 'bg-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.8)] animate-pulse';
-      case 'super_gt':
-        return 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)] animate-pulse';
-      default:
-        return 'bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)] animate-pulse';
+      case 'f1': return 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)] animate-pulse';
+      case 'wec': return 'bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.8)] animate-pulse';
+      case 'dtm': return 'bg-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.8)] animate-pulse';
+      case 'super_gt': return 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)] animate-pulse';
+      default: return 'bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)] animate-pulse';
     }
   };
 
