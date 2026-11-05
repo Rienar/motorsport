@@ -353,7 +353,34 @@ export default function App() {
     }).sort((a, b) => a.parsedDate - b.parsedDate);
   }, [races, activeSeries, activeYear, activeMonth, showPast, currentTime]);
 
-  const handleлюминь = () => {};
+  // Функция добавления в календарь
+  const handleAddToCalendar = (e, type, race) => {
+    e.stopPropagation();
+    const cInfo = getCircuitInfo(race);
+    const start = race.parsedDate;
+    const end = new Date(start.getTime() + getRaceDurationMs(race)); 
+    const title = `${race.name} (${race.series.toUpperCase()})`;
+    const loc = `${cInfo?.name || race.circuit}, ${race.country}`;
+    const formatD = d => d.toISOString().replace(/-|:|\.\d+/g, '');
+
+    if (type === 'google') {
+      const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${formatD(start)}/${formatD(end)}&location=${encodeURIComponent(loc)}`;
+      window.open(url, '_blank');
+    } else if (type === 'ics') {
+      const ics = [
+        "BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT",
+        `SUMMARY:${title}`, `DTSTART:${formatD(start)}`, `DTEND:${formatD(end)}`, `LOCATION:${loc}`,
+        "END:VEVENT", "END:VCALENDAR"
+      ].join("\n");
+      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = `${race.name.replace(/\s+/g, '_')}.ics`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
 
   const openDayModal = (racesList, initialIndex = 0) => {
     if (!racesList || racesList.length === 0) return;
@@ -439,7 +466,6 @@ export default function App() {
             </div>
           ) : (
             <>
-              {/* Логика отображения трекера: если All - таймер/live, если серия - SeasonTracker */}
               {activeSeries === 'all' ? (
                 activeOrNextRace.race && (
                   <div className={`border rounded-3xl p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center transition-all ${
