@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   MapPin, Clock, X, Gauge, Ruler, Cloud, Navigation, 
   Trophy, CalendarPlus, Download, ChevronDown, ChevronUp, 
@@ -12,11 +12,39 @@ export const RaceModal = ({
   isPastRace, isF1, standingsScope, setStandingsScope, 
   standingsLoading, activeList, isStandingsExpanded, setIsStandingsExpanded, 
   standingsTab, setStandingsTab, driverStandings, cumulativeDrivers, 
-  handleAddToCalendar, lang, t 
+  lang, t 
 }) => {
   if (!selectedRace) return null;
 
   const hasMultipleRaces = dayRacesModal && dayRacesModal.length > 1;
+
+  // Функция добавления в календарь (Google / .ics)
+  const handleAddToCalendar = (e, type, race) => {
+    e.stopPropagation();
+    const start = race.parsedDate;
+    const end = new Date(start.getTime() + (2 * 60 * 60 * 1000)); 
+    const title = `${race.name} (${race.series.toUpperCase()})`;
+    const loc = `${cInfo?.name || race.circuit}, ${race.country}`;
+    const formatD = d => d.toISOString().replace(/-|:|\.\d+/g, '');
+
+    if (type === 'google') {
+      const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${formatD(start)}/${formatD(end)}&location=${encodeURIComponent(loc)}`;
+      window.open(url, '_blank');
+    } else if (type === 'ics') {
+      const ics = [
+        "BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT",
+        `SUMMARY:${title}`, `DTSTART:${formatD(start)}`, `DTEND:${formatD(end)}`, `LOCATION:${loc}`,
+        "END:VEVENT", "END:VCALENDAR"
+      ].join("\n");
+      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = `${race.name.replace(/\s+/g, '_')}.ics`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
@@ -39,7 +67,6 @@ export const RaceModal = ({
           <X size={20} />
         </button>
 
-        {/* Переключатель между гонками одного дня */}
         {hasMultipleRaces && (
           <div className="mb-4 pr-10">
             <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">
@@ -99,7 +126,6 @@ export const RaceModal = ({
           </div>
         </div>
 
-        {/* Характеристики трассы */}
         <div className="grid grid-cols-2 gap-3 mb-6">
           <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
             <div className="text-gray-500 flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider"><Ruler size={14}/> {t.trackLength}</div>
@@ -122,7 +148,6 @@ export const RaceModal = ({
           </div>
         </div>
 
-        {/* Результаты F1 */}
         {(isPastRace || currentLive) && isF1 && (
           <div className="mb-6 bg-black/40 border border-white/5 rounded-2xl p-4 overflow-hidden transition-all duration-300 min-h-[160px] relative">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -236,7 +261,6 @@ export const RaceModal = ({
           </div>
         )}
 
-        {/* Календарный блок */}
         {!isPastRace && !currentLive && (
           <div className="bg-indigo-950/20 border border-indigo-500/20 rounded-2xl p-4 flex justify-between items-center relative overflow-hidden">
              <div>
