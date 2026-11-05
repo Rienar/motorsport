@@ -56,6 +56,24 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
 
   if (!trackerData) return null;
 
+  // Динамический подбор цвета активной точки под выбранную серию гонок
+  const getActiveDotStyle = (seriesKey) => {
+    switch (seriesKey?.toLowerCase()) {
+      case 'f1':
+        return 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)] animate-pulse';
+      case 'wec':
+        return 'bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.8)] animate-pulse';
+      case 'dtm':
+        return 'bg-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.8)] animate-pulse';
+      case 'super_gt':
+        return 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)] animate-pulse';
+      default:
+        return 'bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)] animate-pulse';
+    }
+  };
+
+  const activeDotClass = getActiveDotStyle(activeSeries);
+
   return (
     <div className="border rounded-3xl p-5 shadow-2xl relative overflow-hidden mb-6 flex flex-col justify-center bg-gradient-to-br from-white/[0.08] to-white/[0.01] border-white/10 backdrop-blur-xl">
       <Trophy className="absolute -right-6 -bottom-6 w-40 h-40 text-white/5 pointer-events-none" />
@@ -86,7 +104,7 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
               dotColor = 'bg-white';
             }
             if (isNext) {
-              dotColor = 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-pulse';
+              dotColor = activeDotClass;
             }
 
             return (
