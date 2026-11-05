@@ -3,14 +3,14 @@ import { Trophy } from 'lucide-react';
 
 export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSelectRace }) => {
   const seriesRaces = useMemo(() => {
-    if (activeSeries === 'all') return [];
+    if (!races || activeSeries === 'all') return [];
     return races
-      .filter(r => r.series.toLowerCase() === activeSeries.toLowerCase())
+      .filter(r => r && r.series && r.series.toLowerCase() === activeSeries.toLowerCase() && r.parsedDate instanceof Date && !isNaN(r.parsedDate))
       .sort((a, b) => a.parsedDate - b.parsedDate);
   }, [races, activeSeries]);
 
   const trackerData = useMemo(() => {
-    if (seriesRaces.length === 0) return null;
+    if (!seriesRaces || seriesRaces.length === 0) return null;
 
     const now = currentTime.getTime();
     let nextIndex = seriesRaces.findIndex(r => r.parsedDate.getTime() > now);
