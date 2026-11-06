@@ -200,7 +200,9 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
   const lapsCount = circuit.laps || null;
   const lengthKm = circuit.length_km || null;
   const turnsCount = circuit.turns || null;
-  const wikiUrl = race.wikipedia_url || circuit.wikipedia_url || null;
+  
+  // ИСПРАВЛЕНИЕ ДАННЫХ: В БД колонка называется wiki_url, а не wikipedia_url
+  const wikiUrl = race.wiki_url || circuit.wiki_url || null;
 
   const showResults = raceResults && raceResults.stage && (raceResults.stage.drivers?.length > 0 || raceResults.stage.teams?.length > 0);
 
@@ -289,29 +291,30 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-surface-field border border-white/10 rounded-2xl p-5 shadow-inner">
-          <div className="flex items-start gap-4">
-            <div className="p-2.5 bg-indigo-600 text-white rounded-xl shrink-0 shadow-[0_0_15px_rgba(79,70,229,0.6)]">
-              <Calendar size={22} className="text-white" />
+        {/* ИСПРАВЛЕНИЕ ВЕРСТКИ: Жесткий Grid и min-w-0 чтобы блоки не сужались */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 bg-surface-field border border-white/10 rounded-2xl p-4 sm:p-5 shadow-inner">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-11 h-11 bg-indigo-600 text-white rounded-xl flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(79,70,229,0.6)]">
+              <Calendar size={20} className="text-white" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mb-1">{lang === 'ru' ? 'Дата' : 'Date'}</span>
-              <span className="text-white font-bold capitalize leading-tight text-sm sm:text-base">{formattedDate}</span>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest leading-none mb-1.5">{lang === 'ru' ? 'Дата' : 'Date'}</span>
+              <span className="text-white font-bold capitalize truncate text-sm sm:text-base">{formattedDate}</span>
             </div>
           </div>
-          <div className="flex items-start gap-4">
-            <div className="p-2.5 bg-amber-600 text-white rounded-xl shrink-0 shadow-[0_0_15px_rgba(217,119,6,0.6)]">
-              <Clock size={22} className="text-white" />
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-11 h-11 bg-amber-600 text-white rounded-xl flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(217,119,6,0.6)]">
+              <Clock size={20} className="text-white" />
             </div>
-            <div className="flex flex-col w-full">
-              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mb-1">{lang === 'ru' ? 'Время старта' : 'Start Time'}</span>
-              <div className="flex items-center gap-4 mt-0.5">
+            <div className="flex flex-col min-w-0">
+              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest leading-none mb-1.5">{lang === 'ru' ? 'Время старта' : 'Start Time'}</span>
+              <div className="flex items-center gap-3 mt-0.5">
                 <div className="flex items-center gap-1.5" title={lang === 'ru' ? 'Местное время' : 'Local time'}>
-                  <MapPin size={14} className="text-zinc-500" />
+                  <MapPin size={13} className="text-zinc-500 shrink-0" />
                   <span className="text-white font-bold text-sm sm:text-base">{localTime}</span>
                 </div>
                 <div className="flex items-center gap-1.5" title={lang === 'ru' ? 'Московское время' : 'Moscow time'}>
-                  <Globe size={14} className="text-zinc-500" />
+                  <Globe size={13} className="text-zinc-500 shrink-0" />
                   <span className="text-white font-bold text-sm sm:text-base">{moscowTime}</span>
                 </div>
               </div>
@@ -343,23 +346,36 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
 
         {showResults && (
           <div className="flex flex-col gap-2 mt-2">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
-                <button onClick={() => setResultsTab('stage')} className={`px-3 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-all ${resultsTab === 'stage' ? 'bg-indigo-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>
+            {/* ИСПРАВЛЕНИЕ КНОПОК: Единая строка, равная высота (h-8), фиолетовый акцент без рамок */}
+            <div className="flex flex-wrap items-center justify-between gap-2 w-full pb-1">
+              <div className="flex bg-white/5 p-1 rounded-xl gap-1">
+                <button 
+                  onClick={() => setResultsTab('stage')} 
+                  className={`h-8 px-2.5 sm:px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center whitespace-nowrap ${resultsTab === 'stage' ? 'bg-purple-600 text-white shadow-glow-purple' : 'text-zinc-400 hover:text-white'}`}
+                >
                   {t.stageResults || 'Итоги этапа'}
                 </button>
                 {raceResults.after && (
-                  <button onClick={() => setResultsTab('after')} className={`px-3 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-all ${resultsTab === 'after' ? 'bg-amber-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                    {t.afterStage || 'Зачёт после этапа'}
+                  <button 
+                    onClick={() => setResultsTab('after')} 
+                    className={`h-8 px-2.5 sm:px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center whitespace-nowrap ${resultsTab === 'after' ? 'bg-purple-600 text-white shadow-glow-purple' : 'text-zinc-400 hover:text-white'}`}
+                  >
+                    Общий зачёт
                   </button>
                 )}
               </div>
-              <div className="flex gap-1 sm:gap-2">
-                <button onClick={() => setStandingsType('drivers')} className={`p-1.5 rounded-lg border transition-colors ${standingsType === 'drivers' ? 'bg-white/10 border-white/20 text-white' : 'bg-transparent border-transparent text-zinc-500 hover:text-zinc-300'}`}>
-                  <Users size={16} />
+              <div className="flex bg-white/5 p-1 rounded-xl gap-1">
+                <button 
+                  onClick={() => setStandingsType('drivers')} 
+                  className={`h-8 px-2.5 sm:px-3 rounded-lg text-[11px] font-bold tracking-wider transition-all flex items-center justify-center whitespace-nowrap ${standingsType === 'drivers' ? 'bg-purple-600 text-white shadow-glow-purple' : 'text-zinc-400 hover:text-white'}`}
+                >
+                  По пилотам
                 </button>
-                <button onClick={() => setStandingsType('teams')} className={`p-1.5 rounded-lg border transition-colors ${standingsType === 'teams' ? 'bg-white/10 border-white/20 text-white' : 'bg-transparent border-transparent text-zinc-500 hover:text-zinc-300'}`}>
-                  <Shield size={16} />
+                <button 
+                  onClick={() => setStandingsType('teams')} 
+                  className={`h-8 px-2.5 sm:px-3 rounded-lg text-[11px] font-bold tracking-wider transition-all flex items-center justify-center whitespace-nowrap ${standingsType === 'teams' ? 'bg-purple-600 text-white shadow-glow-purple' : 'text-zinc-400 hover:text-white'}`}
+                >
+                  По командам
                 </button>
               </div>
             </div>
