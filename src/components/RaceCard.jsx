@@ -1,182 +1,73 @@
-import React, { useMemo } from 'react';
-import { Calendar, Clock, MapPin, ExternalLink, Radio } from 'lucide-react';
-import { getSeriesConfig, DEFAULT_CONFIG } from '../constants/seriesConfig';
+import React from 'react';
+import { Calendar, Clock, MapPin, Radio } from 'lucide-react';
+import { getSeriesConfig } from '../constants/seriesConfig';
 
-export default function RaceCard({ race, onClick, isLive = false, lang = 'ru', t = {} }) {
-  if (!race) return null;
+export default function RaceCard({ race, onClick, isNext = false, isLiveNow = false, lang = 'ru' }) {
+if (!race) return null;
 
-  // Извлекаем серию конкретной гонки, игнорируя фильтр ALL
-  const seriesRaw = race.series_id || race.series;
-  const sCfg = getSeriesConfig(seriesRaw) || DEFAULT_CONFIG;
-  const seriesBadgeLabel = sCfg.code !== 'all' 
-    ? (sCfg.shortLabel ? (sCfg.shortLabel[lang] || sCfg.shortLabel) : (sCfg.label?.[lang] || 'RACE'))
-    : ((typeof race.series === 'object' ? race.series?.code || race.series?.short_name : race.series) || 'RACE').toUpperCase();
+const sCfg = getSeriesConfig(race.series_id || race.series);
+const seriesBadgeLabel = sCfg.shortLabel ? (sCfg.shortLabel[lang] || sCfg.shortLabel) : (sCfg.label?.[lang] || 'RACE');
+const raceDate = race.parsedDate instanceof Date && !isNaN(race.parsedDate) ? race.parsedDate : new Date(race.date);
 
-  const raceDate = useMemo(() => {
-    return race.parsedDate instanceof Date && !isNaN(race.parsedDate)
-      ? race.parsedDate
-      : new Date(race.date);
-  }, [race]);
+const formattedDate = raceDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', {
+day: 'numeric', month: 'short', weekday: 'short'
+});
 
-  const countdown = useMemo(() => {
-    if (isLive) {
-      return { status: 'live', text: lang === 'ru' ? 'Прямой эфир' : 'LIVE NOW' };
-    }
+const trackLocalTime = race.local_time || raceDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+const moscowTime = raceDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' });
 
-    const now = new Date();
-    const diff = raceDate.getTime() - now.getTime();
+const countryName = race.circuits?.country || race.country || race.location_country || '';
+const circuitName = race.circuits?.name || race.circuit || race.location || '';
 
-    if (diff <= 0) {
-      return null;
-    }
+return (
+<div
+onClick={onClick}
+className={relative group bg-[#0c0c10] border rounded-2xl p-4 sm:p-5 flex flex-row items-start justify-between gap-4 transition-all duration-300 shadow-lg cursor-pointer ${ isLiveNow  ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.3)]'  : isNext  ? 'border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.2)]'  : 'border-white/5 hover:border-purple-500/50 hover:shadow-[0_0_20px_rgba(168,85,247,0.2)]' }}
+>
+{isLiveNow ? (
 
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+ LIVE
 
-    if (days > 0) {
-      return { 
-        status: 'upcoming', 
-        text: lang === 'ru' ? `Через ${days} д ${hours} ч` : `In ${days}d ${hours}h` 
-      };
-    }
+) : isNext && (
 
-    const minutes = Math.floor((diff / (1000 * 60)) % 60);
-    return { 
-      status: 'upcoming', 
-      text: lang === 'ru' ? `Через ${hours} ч ${minutes} м` : `In ${hours}h ${minutes}m` 
-    };
-  }, [raceDate, isLive, lang]);
+{lang === 'ru' ? 'Скоро' : 'Soon'}
 
-  const formattedDate = useMemo(() => {
-    return raceDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', {
-      day: 'numeric',
-      month: 'short',
-      weekday: 'short'
-    });
-  }, [raceDate, lang]);
+)}
 
-  const trackLocalTime = useMemo(() => {
-    if (race.local_time) return race.local_time;
-    return raceDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }, [raceDate, race.local_time, lang]);
+  {/* Левая часть */}
+  <div className="flex flex-col items-start gap-2.5 flex-1 min-w-0">
+    <span className={`px-2.5 py-1 rounded-md text-[10px] sm:text-xs font-black uppercase tracking-wider ${sCfg.badgeClass}`} title={race.name}>
+      {seriesBadgeLabel}
+    </span>
+    
+    <h3 className="text-lg sm:text-2xl font-bold text-white tracking-tight mt-1 truncate w-full" title={race.name}>{race.name || 'Race'}</h3>
+    
+    <div className="flex items-center gap-1.5 text-xs sm:text-sm text-zinc-400 truncate w-full">
+      <MapPin size={14} className="text-zinc-500 shrink-0" />
+      <span className="truncate">{countryName}{countryName && circuitName ? ', ' : ''}{circuitName || 'TBA'}</span>
+    </div>
+  </div>
 
-  const moscowTime = useMemo(() => {
-    return raceDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', {
-      timeZone: 'Europe/Moscow',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }, [raceDate, lang]);
+  {/* Правая часть */}
+  <div className="flex flex-col items-end gap-3 shrink-0">
+    <div className="flex items-center gap-1.5 border border-white/10 bg-white/5 rounded-xl px-3 py-1.5 text-white text-[11px] shadow-sm font-semibold">
+      <Calendar size={13} className="text-zinc-400" />
+      <span>{formattedDate}</span>
+    </div>
 
-  const roundTitle = race.round 
-    ? (lang === 'ru' ? `Этап ${race.round}` : `Round ${race.round}`)
-    : (race.stage || '');
-
-  const countryName = race.country || race.location_country || '';
-  const circuitName = race.circuit || race.location || '';
-  const wikiLink = race.wiki_url || race.wikipedia_url || race.wiki || null;
-
-  return (
-    <div
-      onClick={onClick}
-      className={`group relative flex flex-col md:flex-row md:items-center justify-between w-full bg-[#0a0b10]/95 hover:bg-[#0e1017] border rounded-2xl p-4 sm:p-5 transition-all duration-200 cursor-pointer shadow-lg hover:shadow-2xl gap-3 sm:gap-4 overflow-hidden ${
-        isLive 
-          ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.25)] ring-1 ring-red-500/40' 
-          : 'border-white/[0.08] hover:border-white/20'
-      }`}
-    >
-      {/* Фоновое свечение в цвет серии */}
-      <div 
-        className={`absolute -left-10 top-0 bottom-0 w-24 rounded-full blur-3xl pointer-events-none opacity-20 ${sCfg.dotColor || 'bg-white'}`}
-      />
-
-      {/* Левый блок: Бейдж серии, этап, название гонки, страна и трек */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-4 flex-1 min-w-0 z-10">
-        <div className="flex items-center gap-2 shrink-0">
-          <span 
-            className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-sm ${sCfg.badgeClass}`}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full ${sCfg.dotColor}`} />
-            {seriesBadgeLabel}
-          </span>
-
-          {roundTitle && (
-            <span className="text-xs font-mono font-bold text-zinc-500 uppercase tracking-wider">
-              {roundTitle}
-            </span>
-          )}
-        </div>
-
-        <div className="flex flex-col min-w-0">
-          <h3 className="text-base sm:text-lg font-black text-white group-hover:text-amber-400 transition-colors truncate font-sans tracking-tight">
-            {race.name || 'Race'}
-          </h3>
-          <div className="flex items-center gap-1.5 text-xs text-zinc-400 truncate mt-0.5">
-            <MapPin size={13} className="text-zinc-500 shrink-0" />
-            {countryName && <span className="font-semibold text-zinc-300">{countryName}, </span>}
-            <span className="truncate text-zinc-400">{circuitName || 'TBA'}</span>
-          </div>
-        </div>
+    <div className="flex flex-col gap-1 mt-auto">
+      <div className="flex items-center justify-end gap-2 px-1">
+        <Clock size={15} className="text-zinc-500 hidden sm:block" />
+        <span className="text-zinc-500 text-xs sm:text-sm">{lang === 'ru' ? 'Местное:' : 'Local:'} <span className="text-white font-bold tracking-wide text-sm sm:text-base ml-1">{trackLocalTime}</span></span>
       </div>
-
-      {/* Правый блок: Дата с красным акцентом, времена, статус и вики */}
-      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between md:justify-end gap-3 sm:gap-5 pt-3 md:pt-0 border-t md:border-t-0 border-white/[0.06] shrink-0 z-10">
-        {/* Бейдж даты */}
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 font-mono text-xs font-bold tracking-tight shadow-sm">
-          <Calendar size={13} className="text-red-400 shrink-0" />
-          <span>{formattedDate}</span>
-        </div>
-
-        {/* Блок времен: Местное (серое) и МСК (ярко-белое) */}
-        <div className="flex items-center gap-2 font-mono text-xs">
-          <Clock size={13} className="text-zinc-600 shrink-0 hidden sm:inline" />
-          
-          <span className="text-zinc-500" title="Локальное время автодрома">
-            <span className="text-zinc-600">{lang === 'ru' ? 'Местное:' : 'Track:'}</span>{' '}
-            <span className="text-zinc-400 font-medium">{trackLocalTime}</span>
-          </span>
-
-          <span className="text-zinc-700">•</span>
-
-          <span className="text-zinc-400" title="Время по Москве (UTC+3)">
-            <span className="text-zinc-500">{lang === 'ru' ? 'МСК:' : 'MSK:'}</span>{' '}
-            <span className="text-white font-bold drop-shadow-sm">{moscowTime}</span>
-          </span>
-        </div>
-
-        {/* Таймер до старта или прямой эфир */}
-        {countdown && (
-          <div className="flex items-center text-xs font-mono font-bold shrink-0">
-            {countdown.status === 'live' ? (
-              <span className="flex items-center gap-1 text-red-500 bg-red-500/10 px-2.5 py-1 rounded-xl border border-red-500/20 animate-pulse">
-                <Radio size={11} className="animate-spin" />
-                {countdown.text}
-              </span>
-            ) : (
-              <span className="text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/20">
-                {countdown.text}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Ссылка на статью */}
-        {wikiLink && (
-          <a
-            href={wikiLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            title={lang === 'ru' ? 'Статья в Wikipedia' : 'Wikipedia'}
-            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/5 transition-all shrink-0"
-          >
-            <ExternalLink size={13} />
-          </a>
-        )}
+      <div className="flex items-center justify-end gap-2 px-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 hidden sm:block"></span>
+        <span className="text-zinc-500 text-xs sm:text-sm">{lang === 'ru' ? 'МСК:' : 'MSK:'} <span className="text-white font-bold tracking-wide text-sm sm:text-base ml-1">{moscowTime}</span></span>
       </div>
     </div>
-  );
+  </div>
+</div>
+
+
+);
 }
