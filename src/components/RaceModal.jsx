@@ -5,6 +5,10 @@ import { Sun, CloudRain, CloudSun, CloudSnow, CloudFog, CloudLightning, Globe, X
 
 import { getDriverResults, getTeamResults } from '../services/queries'; 
 
+// Кэширование запросов на уровне модуля, чтобы избежать дублирования (спама БД)
+const resultsCache = new Map();
+const weatherCache = new Map();
+
 // Локальные SVG-иконки (Оставлены только уникальные)
 const Speedometer = ({ size, className }) => (
   <svg className={className} width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -63,95 +67,120 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
   const [standingsType, setStandingsType] = useState('drivers'); // 'drivers' | 'teams'
   const [weather, setWeather] = useState(null);
   const [raceResults, setRaceResults] = useState(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const circuit = race ? (Array.isArray(race.circuits) ? race.circuits[0] : (race.circuits || {})) : {};
   // Единое вычисление даты для всех блоков
   const rDate = race?.parsedDate instanceof Date && !isNaN(race.parsedDate) ? race.parsedDate : new Date(race?.date);
 
-  // --- 1. ХУК: ЗАГРУЗКА ПОГОДЫ ---
+  // --- 1. ХУК: ЗАГРУЗКА ПОГОДЫ (С КЭШИРОВАНИЕМ) ---
   useEffect(() => {
     if (!race?.id) return;
+    
+    const diffDays = (rDate.getTime() - new Date().getTime()) / (1000 * 3600 * 24);
+    if (diffDays < -1 || diffDays > 10) return; // Погода не нужна для старых гонок
+
     let isMounted = true;
-
     const fetchWeather = async () => {
-      const diffDays = (rDate.getTime() - new Date().getTime()) / (1000 * 3600 * 24);
-      
-      if (diffDays >= -1 && diffDays <= 10) {
-        try {
-          let lat = circuit.lat || race.lat;
-          let lng = circuit.lng || race.lng;
-          
-          if (!lat || !lng) {
-            const query = circuit.name || circuit.country || race.name;
-            const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1`);
-            const geoData = await geoRes.json();
-            if (geoData.results && geoData.results.length > 0) {
-              lat = geoData.results[0].latitude;
-              lng = geoData.results[0].longitude;
-            }
-          }
-
-          if (lat && lng) {
-            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto`);
-            const data = await res.json();
-            if (data.daily) {
-              const dateStr = rDate.toISOString().split('T')[0];
-              const idx = data.daily.time?.indexOf(dateStr) !== -1 ? data.daily.time.indexOf(dateStr) : 0;
-              if (idx !== undefined && isMounted) {
-                setWeather({
-                  maxTemp: Math.round(data.daily.temperature_2m_max[idx]),
-                  minTemp: Math.round(data.daily.temperature_2m_min[idx]),
-                  code: data.daily.weathercode[idx]
-                });
-              }
-            }
-          }
-        } catch (err) {
-          console.error("Ошибка загрузки погоды:", err);
+      try {
+        let lat = circuit.lat || race.lat;
+        let lng = circuit.lng || race.lng;
+        
+        // Ключ кэша для погоды
+        const cacheKey = lat && lng ? `${lat},${lng}` : circuit.name || race.name;
+        if (weatherCache.has(cacheKey)) {
+          setWeather(weatherCache.get(cacheKey));
+          return;
         }
+
+        if (!lat || !lng) {
+          const query = circuit.name || circuit.country || race.name;
+          const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1`);
+          const geoData = await geoRes.json();
+          if (geoData.results && geoData.results.length > 0) {
+            lat = geoData.results[0].latitude;
+            lng = geoData.results[0].longitude;
+          }
+        }
+
+        if (lat && lng) {
+          const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto`);
+          const data = await res.json();
+          if (data.daily) {
+            const dateStr = rDate.toISOString().split('T')[0];
+            const idx = data.daily.time?.indexOf(dateStr) !== -1 ? data.daily.time.indexOf(dateStr) : 0;
+            if (idx !== undefined) {
+              const wData = {
+                maxTemp: Math.round(data.daily.temperature_2m_max[idx]),
+                minTemp: Math.round(data.daily.temperature_2m_min[idx]),
+                code: data.daily.weathercode[idx]
+              };
+              weatherCache.set(cacheKey, wData);
+              if (isMounted) setWeather(wData);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Ошибка загрузки погоды:", err);
       }
     };
     
     fetchWeather();
     return () => { isMounted = false; };
-  }, [race?.id, circuit.lat, circuit.lng]);
+  }, [race?.id]); // Зависимости сокращены, чтобы исключить циклический ререндер
 
-  // --- 2. ХУК: ЗАГРУЗКА РЕЗУЛЬТАТОВ ---
+  // --- 2. ХУК: ЗАГРУЗКА РЕЗУЛЬТАТОВ (С КЭШИРОВАНИЕМ) ---
   useEffect(() => {
     if (!race?.id) return;
-    let isMounted = true;
     
+    // Если данные уже есть в standingsData, не делаем запрос к БД
+    if (standingsData && standingsData.stage) {
+      setRaceResults(null); 
+      return;
+    }
+
     const isPast = rDate < new Date();
     const isF1 = (race.series_id === 1 || String(race.series?.code || race.series).toLowerCase() === 'f1');
     
-    if (isPast && isF1) {
-      const loadResults = async () => {
-        try {
-          const [driversData, teamsData] = await Promise.all([
-            getDriverResults(race.id),
-            getTeamResults(race.id)
-          ]);
-          
-          if (isMounted) {
-            setRaceResults({
-              stage: {
-                drivers: driversData || [],
-                teams: teamsData || []
-              }
-            });
-          }
-        } catch (e) {
-          console.error('Ошибка загрузки результатов:', e);
-        }
-      };
-      
-      loadResults();
-    } else {
+    if (!isPast || !isF1) {
       setRaceResults(null);
+      return;
     }
 
+    // Возвращаем из кэша, если уже скачали
+    if (resultsCache.has(race.id)) {
+      setRaceResults(resultsCache.get(race.id));
+      return;
+    }
+
+    let isMounted = true;
+    const loadResults = async () => {
+      try {
+        const [driversData, teamsData] = await Promise.all([
+          getDriverResults(race.id),
+          getTeamResults(race.id)
+        ]);
+        
+        const res = {
+          stage: {
+            drivers: driversData || [],
+            teams: teamsData || []
+          }
+        };
+        resultsCache.set(race.id, res); // Запись в кэш
+        
+        if (isMounted) {
+          setRaceResults(res);
+        }
+      } catch (e) {
+        console.error('Ошибка загрузки результатов:', e);
+      }
+    };
+    
+    loadResults();
+
     return () => { isMounted = false; };
-  }, [race?.id]);
+  }, [race?.id, standingsData]);
 
   if (!race) return null;
 
@@ -205,27 +234,45 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
     document.body.removeChild(link);
   };
 
+  // Сбрасываем раскрытие списка при переключении вкладок
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [resultsTab, standingsType]);
+
   const renderResultsList = (list, isAfter) => {
     if (!list || list.length === 0) return <div className="text-zinc-500 text-xs py-4 text-center">{lang === 'ru' ? 'Нет данных' : 'No data'}</div>;
+    
+    // Показывать только Топ-3, если список не развернут
+    const displayList = isExpanded ? list : list.slice(0, 3);
+
     return (
-      <div className="flex flex-col gap-1.5 mt-3 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
-        {list.map((item, idx) => (
-          <div key={idx} className="flex items-center justify-between py-2 px-3 bg-white/[0.03] border border-white/5 rounded-xl hover:bg-white/[0.05] transition-colors">
+      <div className="flex flex-col mt-1">
+        {displayList.map((item, idx) => (
+          <div key={idx} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-black text-zinc-500 w-4 text-center">{item.position}</span>
+              <span className="text-xs font-black text-zinc-500 w-4 text-center">{item.position}</span>
               <div className="flex flex-col">
-                <span className="text-sm font-bold text-white">{item.driver_name || item.team_name}</span>
+                <span className="text-sm font-bold text-white leading-tight">{item.driver_name || item.team_name}</span>
                 {item.driver_name && <span className="text-[10px] text-zinc-500 uppercase tracking-wide">{item.team_name}</span>}
               </div>
             </div>
             <div className="flex items-center gap-3">
               {isAfter && item.pointsDiff > 0 && (
-                <span className="text-[10px] font-black text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-md">+{item.pointsDiff}</span>
+                <span className="text-[11px] font-black text-emerald-400">+{item.pointsDiff}</span>
               )}
-              <span className="text-sm font-black text-white w-8 text-right">{item.points}</span>
+              <span className="text-sm font-black text-white w-6 text-right">{item.points}</span>
             </div>
           </div>
         ))}
+        
+        {list.length > 3 && (
+          <button 
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="mt-3 text-[10px] font-bold text-zinc-400 hover:text-white uppercase tracking-wider transition-colors w-full text-center py-2.5 bg-white/5 hover:bg-white/10 rounded-xl"
+          >
+            {isExpanded ? (lang === 'ru' ? 'Свернуть' : 'Collapse') : (lang === 'ru' ? 'Развернуть весь список' : 'Show full list')}
+          </button>
+        )}
       </div>
     );
   };
@@ -325,26 +372,26 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
 
         {/* --- Блок Результатов --- */}
         {showResults && (
-          <div className="flex flex-col gap-3 mt-2">
+          <div className="flex flex-col gap-2 mt-2">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
                 <button 
                   onClick={() => setResultsTab('stage')} 
-                  className={`px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all ${resultsTab === 'stage' ? 'bg-indigo-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`px-3 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-all ${resultsTab === 'stage' ? 'bg-indigo-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
                 >
                   {t.stageResults || 'Итоги этапа'}
                 </button>
                 {finalResults.after && (
                   <button 
                     onClick={() => setResultsTab('after')} 
-                    className={`px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all ${resultsTab === 'after' ? 'bg-amber-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                    className={`px-3 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-all ${resultsTab === 'after' ? 'bg-amber-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
                   >
                     {t.afterStage || 'Зачёт после этапа'}
                   </button>
                 )}
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex gap-1 sm:gap-2">
                 <button onClick={() => setStandingsType('drivers')} className={`p-1.5 rounded-lg border transition-colors ${standingsType === 'drivers' ? 'bg-white/10 border-white/20 text-white' : 'bg-transparent border-transparent text-zinc-500 hover:text-zinc-300'}`}>
                   <Users size={16} />
                 </button>
@@ -357,44 +404,50 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
           </div>
         )}
 
-        {/* --- Инфо о трассе --- */}
-        <div className="flex flex-col gap-3">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider border-b border-white/10 pb-2">
-            {t.trackInfo || 'Информация о трассе'}
-          </h3>
-          
-          <div className="flex flex-col gap-3 px-1">
-            <TrackInfoRow 
-              Icon={Speedometer} 
-              label={t.lapRecord || 'Рекорд'} 
-              value={lapRecord || '—'} 
-            />
-
-            <TrackInfoRow 
-              Icon={Repeat} 
-              label={lapsCount ? (t.laps || 'Круги') : (t.trackLength || 'Длина')} 
-              value={lapsCount ? lapsCount : lengthKm ? lengthKm : '?'} 
-              unit={lapsCount ? (t.lapsShort || 'круг.') : lengthKm ? 'км' : ''} 
-            />
-
-            <TrackInfoRow 
-              Icon={Turns} 
-              label={t.turns || 'Повороты'} 
-              value={turnsCount || '?'} 
-              unit={t.turnsShort || 'пов.'} 
-            />
+        {/* --- Инфо о трассе (Скрывается при развернутом списке) --- */}
+        {!isExpanded && (
+          <div className="flex flex-col gap-3 mt-1">
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider border-b border-white/10 pb-2">
+              {t.trackInfo || 'Информация о трассе'}
+            </h3>
             
-            {/* Погода */}
-            {weather && (
+            <div className="flex flex-col gap-3 px-1">
               <TrackInfoRow 
-                iconElement={getWeatherIcon(weather.code)}
-                label={lang === 'ru' ? 'Прогноз' : 'Weather'} 
-                value={`${weather.maxTemp}°C`} 
-                unit={`/ ${weather.minTemp}°C`} 
+                Icon={Speedometer} 
+                label={t.lapRecord || 'Рекорд'} 
+                value={lapRecord || '—'} 
               />
-            )}
+
+              <TrackInfoRow 
+                Icon={Repeat} 
+                label={lapsCount ? (t.laps || 'Круги') : (t.trackLength || 'Длина')} 
+                value={lapsCount ? lapsCount : lengthKm ? lengthKm : '?'} 
+                unit={lapsCount ? (t.lapsShort || 'круг.') : lengthKm ? 'км' : ''} 
+              />
+
+              <TrackInfoRow 
+                Icon={Turns} 
+                label={t.turns || 'Повороты'} 
+                value={turnsCount || '?'} 
+                unit={t.turnsShort || 'пов.'} 
+              />
+
+              {weather && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    {getWeatherIcon(weather.code)}
+                    <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">
+                      {t.weather || 'Прогноз'}
+                    </span>
+                  </div>
+                  <span className="text-sm text-white font-bold">
+                    {weather.maxTemp}°C <span className="text-xs text-zinc-500 font-medium">/ {weather.minTemp}°C</span>
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
       </div>
     </div>
