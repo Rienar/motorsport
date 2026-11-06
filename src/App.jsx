@@ -24,7 +24,7 @@ export default function App() {
   const [lang, setLang] = useState('ru');
   const [selectedSeries, setSelectedSeries] = useState('ALL');
   
-  // По умолчанию: 2026 год, все месяцы, режим карточек ('list')
+  // По умолчанию: 2026 год, все месяцы, вид списка карточек ('list')
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
@@ -188,7 +188,8 @@ export default function App() {
         onOpenSeason={() => setIsSeasonModalOpen(true)}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      {/* Адаптивный контейнер контента */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-64 text-zinc-500 space-y-3">
             <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -207,7 +208,7 @@ export default function App() {
           </div>
         ) : (
           <>
-            {/* Трекер сезона */}
+            {/* Трекер прогресса сезона */}
             <SeasonTracker
               races={races}
               activeSeries={selectedSeries}
@@ -218,14 +219,14 @@ export default function App() {
               onSelectRace={setSelectedRace}
             />
 
-            {/* Полноценная сетка карточек или календарь */}
+            {/* Адаптивный переключатель видов */}
             {viewMode === 'list' ? (
               filteredRaces.length === 0 ? (
                 <div className="flex items-center justify-center h-64 text-zinc-500 text-sm">
                   {lang === 'ru' ? 'Нет гонок по выбранным критериям.' : 'No races match the selected criteria.'}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+                <div className="flex flex-col gap-2.5 sm:gap-3.5 w-full">
                   {filteredRaces.map((race) => (
                     <RaceCard
                       key={race.id}
