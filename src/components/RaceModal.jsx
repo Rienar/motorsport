@@ -2,14 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { getSeriesConfig } from '../constants/seriesConfig';
 import { translations } from '../constants/translations';
 import { Sun, CloudRain, CloudSun, CloudSnow, CloudFog, CloudLightning, Globe, X, MapPin, Calendar, Clock, CalendarPlus, ExternalLink, Users, Shield } from 'lucide-react';
+import { getSeasonResults } from '../services/queries'; 
 
-import { getDriverResults, getTeamResults } from '../services/queries'; 
-
-// Кэширование запросов на уровне модуля, чтобы избежать дублирования (спама БД)
 const resultsCache = new Map();
 const weatherCache = new Map();
 
-// Локальные SVG-иконки (Оставлены только уникальные)
 const Speedometer = ({ size, className }) => (
   <svg className={className} width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l4-4" />
@@ -49,7 +46,6 @@ const getWeatherIcon = (code) => {
   return <CloudSun size={16} className="text-zinc-400" />;
 };
 
-// DRY: Вспомогательный компонент для строк информации о трассе
 const TrackInfoRow = ({ Icon, iconElement, label, value, unit }) => (
   <div className="flex items-center justify-between">
     <div className="flex items-center gap-2.5">
@@ -62,23 +58,21 @@ const TrackInfoRow = ({ Icon, iconElement, label, value, unit }) => (
   </div>
 );
 
-export default function RaceModal({ race, onClose, standingsData, lang = 'ru' }) {
-  const [resultsTab, setResultsTab] = useState('stage'); // 'stage' | 'after'
-  const [standingsType, setStandingsType] = useState('drivers'); // 'drivers' | 'teams'
+export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' }) {
+  const [resultsTab, setResultsTab] = useState('stage'); 
+  const [standingsType, setStandingsType] = useState('drivers'); 
   const [weather, setWeather] = useState(null);
   const [raceResults, setRaceResults] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const circuit = race ? (Array.isArray(race.circuits) ? race.circuits[0] : (race.circuits || {})) : {};
-  // Единое вычисление даты для всех блоков
   const rDate = race?.parsedDate instanceof Date && !isNaN(race.parsedDate) ? race.parsedDate : new Date(race?.date);
 
-  // --- 1. ХУК: ЗАГРУЗКА ПОГОДЫ (С КЭШИРОВАНИЕМ) ---
   useEffect(() => {
     if (!race?.id) return;
     
     const diffDays = (rDate.getTime() - new Date().getTime()) / (1000 * 3600 * 24);
-    if (diffDays < -1 || diffDays > 10) return; // Погода не нужна для старых гонок
+    if (diffDays < -1 || diffDays > 10) return; 
 
     let isMounted = true;
     const fetchWeather = async () => {
@@ -86,7 +80,6 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
         let lat = circuit.lat || race.lat;
         let lng = circuit.lng || race.lng;
         
-        // Ключ кэша для погоды
         const cacheKey = lat && lng ? `${lat},${lng}` : circuit.name || race.name;
         if (weatherCache.has(cacheKey)) {
           setWeather(weatherCache.get(cacheKey));
@@ -109,14 +102,14 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
           if (data.daily) {
             const dateStr = rDate.toISOString().split('T')[0];
             const idx = data.daily.time?.indexOf(dateStr) !== -1 ? data.daily.time.indexOf(dateStr) : 0;
-            if (idx !== undefined) {
+            if (idx !== undefined && isMounted) {
               const wData = {
                 maxTemp: Math.round(data.daily.temperature_2m_max[idx]),
                 minTemp: Math.round(data.daily.temperature_2m_min[idx]),
                 code: data.daily.weathercode[idx]
               };
               weatherCache.set(cacheKey, wData);
-              if (isMounted) setWeather(wData);
+              setWeather(wData);
             }
           }
         }
@@ -124,21 +117,13 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
         console.error("Ошибка загрузки погоды:", err);
       }
     };
-    
     fetchWeather();
     return () => { isMounted = false; };
-  }, [race?.id]); // Зависимости сокращены, чтобы исключить циклический ререндер
+  }, [race?.id]);
 
-  // --- 2. ХУК: ЗАГРУЗКА РЕЗУЛЬТАТОВ (С КЭШИРОВАНИЕМ) ---
   useEffect(() => {
     if (!race?.id) return;
     
-    // Если данные уже есть в standingsData, не делаем запрос к БД
-    if (standingsData && standingsData.stage) {
-      setRaceResults(null); 
-      return;
-    }
-
     const isPast = rDate < new Date();
     const isF1 = (race.series_id === 1 || String(race.series?.code || race.series).toLowerCase() === 'f1');
     
@@ -147,40 +132,57 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
       return;
     }
 
-    // Возвращаем из кэша, если уже скачали
-    if (resultsCache.has(race.id)) {
-      setRaceResults(resultsCache.get(race.id));
+    const seasonRacesIds = allRaces
+      .filter(r => (Number(r.season) === Number(race.season)) && (new Date(r.date || r.parsedDate) <= rDate))
+      .map(r => r.id);
+    
+    if (seasonRacesIds.length === 0) seasonRacesIds.push(race.id);
+
+    const cacheKey = `standings_v2_${race.id}`;
+    if (resultsCache.has(cacheKey)) {
+      setRaceResults(resultsCache.get(cacheKey));
       return;
     }
 
     let isMounted = true;
     const loadResults = async () => {
       try {
-        const [driversData, teamsData] = await Promise.all([
-          getDriverResults(race.id),
-          getTeamResults(race.id)
-        ]);
+        const { drivers, teams } = await getSeasonResults(seasonRacesIds);
         
+        const stageDrivers = drivers.filter(d => d.race_id === race.id).sort((a, b) => a.position - b.position);
+        const stageTeams = teams.filter(t => t.race_id === race.id).sort((a, b) => a.position - b.position);
+
+        const afterDriversMap = {};
+        drivers.forEach(d => {
+            if (!afterDriversMap[d.driver_name]) afterDriversMap[d.driver_name] = { points: 0, pointsDiff: 0, team_name: d.team_name, driver_name: d.driver_name };
+            afterDriversMap[d.driver_name].points += Number(d.points || 0);
+            if (d.race_id === race.id) afterDriversMap[d.driver_name].pointsDiff = Number(d.points || 0);
+        });
+        const afterDrivers = Object.values(afterDriversMap).sort((a, b) => b.points - a.points).map((d, i) => ({ ...d, position: i + 1 }));
+
+        const afterTeamsMap = {};
+        teams.forEach(t => {
+            if (!afterTeamsMap[t.team_name]) afterTeamsMap[t.team_name] = { points: 0, pointsDiff: 0, team_name: t.team_name };
+            afterTeamsMap[t.team_name].points += Number(t.points || 0);
+            if (t.race_id === race.id) afterTeamsMap[t.team_name].pointsDiff = Number(t.points || 0);
+        });
+        const afterTeams = Object.values(afterTeamsMap).sort((a, b) => b.points - a.points).map((t, i) => ({ ...t, position: i + 1 }));
+
         const res = {
-          stage: {
-            drivers: driversData || [],
-            teams: teamsData || []
-          }
+          stage: { drivers: stageDrivers, teams: stageTeams },
+          after: { drivers: afterDrivers, teams: afterTeams }
         };
-        resultsCache.set(race.id, res); // Запись в кэш
-        
-        if (isMounted) {
-          setRaceResults(res);
-        }
+
+        resultsCache.set(cacheKey, res);
+        if (isMounted) setRaceResults(res);
       } catch (e) {
         console.error('Ошибка загрузки результатов:', e);
       }
     };
     
     loadResults();
-
     return () => { isMounted = false; };
-  }, [race?.id, standingsData]);
+  }, [race?.id, allRaces, rDate]);
 
   if (!race) return null;
 
@@ -200,8 +202,7 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
   const turnsCount = circuit.turns || null;
   const wikiUrl = race.wikipedia_url || circuit.wikipedia_url || null;
 
-  const finalResults = (standingsData && standingsData.stage) ? standingsData : raceResults;
-  const showResults = finalResults && finalResults.stage && (finalResults.stage.drivers?.length > 0 || finalResults.stage.teams?.length > 0);
+  const showResults = raceResults && raceResults.stage && (raceResults.stage.drivers?.length > 0 || raceResults.stage.teams?.length > 0);
 
   const handleGoogleCalendar = () => {
     const start = rDate.toISOString().replace(/-|:|\.\d\d\d/g, '');
@@ -218,13 +219,11 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
     const end = endRace.toISOString().replace(/-|:|\.\d\d\d/g, '');
     const title = `${bLabel} - ${race.name}`;
     const loc = `${cName}, ${tName}`;
-
     const icsData = [
       'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Motorsport Tracker//RU',
       'BEGIN:VEVENT', `DTSTART:${start}`, `DTEND:${end}`, `SUMMARY:${title}`, `LOCATION:${loc}`,
       'END:VEVENT', 'END:VCALENDAR'
     ].join('\n');
-
     const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -234,15 +233,12 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
     document.body.removeChild(link);
   };
 
-  // Сбрасываем раскрытие списка при переключении вкладок
   useEffect(() => {
     setIsExpanded(false);
   }, [resultsTab, standingsType]);
 
   const renderResultsList = (list, isAfter) => {
     if (!list || list.length === 0) return <div className="text-zinc-500 text-xs py-4 text-center">{lang === 'ru' ? 'Нет данных' : 'No data'}</div>;
-    
-    // Показывать только Топ-3, если список не развернут
     const displayList = isExpanded ? list : list.slice(0, 3);
 
     return (
@@ -264,7 +260,6 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
             </div>
           </div>
         ))}
-        
         {list.length > 3 && (
           <button 
             onClick={() => setIsExpanded(!isExpanded)}
@@ -279,27 +274,15 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 pointer-events-none">
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-md pointer-events-auto transition-opacity"
-        onClick={onClose}
-      />
-      
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-md pointer-events-auto transition-opacity" onClick={onClose} />
       <div className="bg-surface-modal border border-white/10 w-full max-w-lg rounded-3xl p-6 sm:p-8 relative pointer-events-auto shadow-[0_25px_70px_rgba(0,0,0,0.7)] flex flex-col gap-6 backdrop-blur-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
-        
-        <button 
-          onClick={onClose} 
-          className="absolute top-5 right-5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors"
-        >
+        <button onClick={onClose} className="absolute top-5 right-5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors">
           <X size={20} />
         </button>
 
         <div className="flex flex-col items-start gap-3 pr-8">
-          <span className={`px-3 py-1 rounded-md text-xs font-black uppercase tracking-wider ${sCfg.badgeClass}`}>
-            {bLabel}
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight leading-tight">
-            {race.name}
-          </h2>
+          <span className={`px-3 py-1 rounded-md text-xs font-black uppercase tracking-wider ${sCfg.badgeClass}`}>{bLabel}</span>
+          <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight leading-tight">{race.name}</h2>
           <div className="flex items-center gap-2 text-zinc-400 text-sm sm:text-base">
             <MapPin size={16} className="text-zinc-500 shrink-0" />
             <span>{cName}{cName && tName ? ', ' : ''}{tName || 'TBA'}</span>
@@ -316,7 +299,6 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
               <span className="text-white font-bold capitalize leading-tight text-sm sm:text-base">{formattedDate}</span>
             </div>
           </div>
-          
           <div className="flex items-start gap-4">
             <div className="p-2.5 bg-amber-600 text-white rounded-xl shrink-0 shadow-[0_0_15px_rgba(217,119,6,0.6)]">
               <Clock size={22} className="text-white" />
@@ -338,27 +320,16 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
         </div>
 
         <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full -mt-2">
-          <button 
-            onClick={handleGoogleCalendar}
-            className="flex items-center justify-center gap-1.5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-white transition-all shadow-sm active:scale-95"
-          >
+          <button onClick={handleGoogleCalendar} className="flex items-center justify-center gap-1.5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-white transition-all shadow-sm active:scale-95">
             <CalendarPlus size={15} className="text-indigo-400 shrink-0" />
             <span className="truncate">Google</span>
           </button>
-          <button 
-            onClick={handleAppleCalendar}
-            className="flex items-center justify-center gap-1.5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-white transition-all shadow-sm active:scale-95"
-          >
+          <button onClick={handleAppleCalendar} className="flex items-center justify-center gap-1.5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-white transition-all shadow-sm active:scale-95">
             <Apple size={15} className="text-zinc-400 shrink-0" />
             <span className="truncate">Apple</span>
           </button>
           {wikiUrl ? (
-            <a 
-              href={wikiUrl} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-white transition-all shadow-sm active:scale-95 cursor-pointer"
-            >
+            <a href={wikiUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1.5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-white transition-all shadow-sm active:scale-95 cursor-pointer">
               <ExternalLink size={15} className="text-zinc-400 shrink-0" />
               <span className="truncate">Вики</span>
             </a>
@@ -370,27 +341,19 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
           )}
         </div>
 
-        {/* --- Блок Результатов --- */}
         {showResults && (
           <div className="flex flex-col gap-2 mt-2">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
-                <button 
-                  onClick={() => setResultsTab('stage')} 
-                  className={`px-3 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-all ${resultsTab === 'stage' ? 'bg-indigo-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
-                >
+                <button onClick={() => setResultsTab('stage')} className={`px-3 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-all ${resultsTab === 'stage' ? 'bg-indigo-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>
                   {t.stageResults || 'Итоги этапа'}
                 </button>
-                {finalResults.after && (
-                  <button 
-                    onClick={() => setResultsTab('after')} 
-                    className={`px-3 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-all ${resultsTab === 'after' ? 'bg-amber-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
-                  >
+                {raceResults.after && (
+                  <button onClick={() => setResultsTab('after')} className={`px-3 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-all ${resultsTab === 'after' ? 'bg-amber-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>
                     {t.afterStage || 'Зачёт после этапа'}
                   </button>
                 )}
               </div>
-              
               <div className="flex gap-1 sm:gap-2">
                 <button onClick={() => setStandingsType('drivers')} className={`p-1.5 rounded-lg border transition-colors ${standingsType === 'drivers' ? 'bg-white/10 border-white/20 text-white' : 'bg-transparent border-transparent text-zinc-500 hover:text-zinc-300'}`}>
                   <Users size={16} />
@@ -400,55 +363,29 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
                 </button>
               </div>
             </div>
-            {renderResultsList(finalResults[resultsTab]?.[standingsType], resultsTab === 'after')}
+            {renderResultsList(raceResults[resultsTab]?.[standingsType], resultsTab === 'after')}
           </div>
         )}
 
-        {/* --- Инфо о трассе (Скрывается при развернутом списке) --- */}
         {!isExpanded && (
           <div className="flex flex-col gap-3 mt-1">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider border-b border-white/10 pb-2">
-              {t.trackInfo || 'Информация о трассе'}
-            </h3>
-            
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider border-b border-white/10 pb-2">{t.trackInfo || 'Информация о трассе'}</h3>
             <div className="flex flex-col gap-3 px-1">
-              <TrackInfoRow 
-                Icon={Speedometer} 
-                label={t.lapRecord || 'Рекорд'} 
-                value={lapRecord || '—'} 
-              />
-
-              <TrackInfoRow 
-                Icon={Repeat} 
-                label={lapsCount ? (t.laps || 'Круги') : (t.trackLength || 'Длина')} 
-                value={lapsCount ? lapsCount : lengthKm ? lengthKm : '?'} 
-                unit={lapsCount ? (t.lapsShort || 'круг.') : lengthKm ? 'км' : ''} 
-              />
-
-              <TrackInfoRow 
-                Icon={Turns} 
-                label={t.turns || 'Повороты'} 
-                value={turnsCount || '?'} 
-                unit={t.turnsShort || 'пов.'} 
-              />
-
+              <TrackInfoRow Icon={Speedometer} label={t.lapRecord || 'Рекорд'} value={lapRecord || '—'} />
+              <TrackInfoRow Icon={Repeat} label={lapsCount ? (t.laps || 'Круги') : (t.trackLength || 'Длина')} value={lapsCount ? lapsCount : lengthKm ? lengthKm : '?'} unit={lapsCount ? (t.lapsShort || 'круг.') : lengthKm ? 'км' : ''} />
+              <TrackInfoRow Icon={Turns} label={t.turns || 'Повороты'} value={turnsCount || '?'} unit={t.turnsShort || 'пов.'} />
               {weather && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     {getWeatherIcon(weather.code)}
-                    <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">
-                      {t.weather || 'Прогноз'}
-                    </span>
+                    <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">{t.weather || 'Прогноз'}</span>
                   </div>
-                  <span className="text-sm text-white font-bold">
-                    {weather.maxTemp}°C <span className="text-xs text-zinc-500 font-medium">/ {weather.minTemp}°C</span>
-                  </span>
+                  <span className="text-sm text-white font-bold">{weather.maxTemp}°C <span className="text-xs text-zinc-500 font-medium">/ {weather.minTemp}°C</span></span>
                 </div>
               )}
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
