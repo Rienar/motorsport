@@ -24,7 +24,7 @@ export default function App() {
   const [lang, setLang] = useState('ru');
   const [selectedSeries, setSelectedSeries] = useState('ALL');
   
-  // По умолчанию: 2026 год, все месяцы, вид списка карточек ('list')
+  // По умолчанию: 2026 год, все месяцы, горизонтальный список плашек ('list')
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
@@ -108,7 +108,7 @@ export default function App() {
     });
   }, [races, selectedSeries, selectedYear, selectedMonth, showPast]);
 
-  // Расчет сетки дней для CalendarView
+  // Сетка дней для календаря
   const calendarDays = useMemo(() => {
     const year = Number(selectedYear);
     const month = calMonth;
@@ -188,8 +188,7 @@ export default function App() {
         onOpenSeason={() => setIsSeasonModalOpen(true)}
       />
 
-      {/* Адаптивный контейнер контента */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 space-y-5">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-64 text-zinc-500 space-y-3">
             <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -208,7 +207,6 @@ export default function App() {
           </div>
         ) : (
           <>
-            {/* Трекер прогресса сезона */}
             <SeasonTracker
               races={races}
               activeSeries={selectedSeries}
@@ -219,14 +217,14 @@ export default function App() {
               onSelectRace={setSelectedRace}
             />
 
-            {/* Адаптивный переключатель видов */}
             {viewMode === 'list' ? (
               filteredRaces.length === 0 ? (
                 <div className="flex items-center justify-center h-64 text-zinc-500 text-sm">
                   {lang === 'ru' ? 'Нет гонок по выбранным критериям.' : 'No races match the selected criteria.'}
                 </div>
               ) : (
-                <div className="flex flex-col gap-2.5 sm:gap-3.5 w-full">
+                /* Вертикальный список: адаптивные плашки во всю ширину */
+                <div className="flex flex-col gap-3 w-full">
                   {filteredRaces.map((race) => (
                     <RaceCard
                       key={race.id}
