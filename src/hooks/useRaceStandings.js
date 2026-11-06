@@ -3,6 +3,12 @@ import { useState, useEffect } from 'react';
 const SUPABASE_URL = 'https://qugdovsytjqjawsesdix.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_DrPG1dGhbIWU2EARd9v88g_X3c_pPvX';
 
+const getSeriesCode = (series) => {
+  if (!series) return '';
+  if (typeof series === 'object') return (series.code || series.short_name || '').toLowerCase();
+  return String(series).toLowerCase();
+};
+
 const aggregateResults = (data, keyField) => {
   const map = {};
   data.forEach(item => {
@@ -17,7 +23,7 @@ const aggregateResults = (data, keyField) => {
     .map((item, idx) => ({ ...item, position: idx + 1 }));
 };
 
-export const useRaceStandings = (selectedRace, races, activeYear, isRaceLive) => {
+export const useRaceStandings = (selectedRace, races = [], activeYear, isRaceLive) => {
   const [isStandingsExpanded, setIsStandingsExpanded] = useState(false);
   const [standingsTab, setStandingsTab] = useState('drivers');
   const [standingsScope, setStandingsScope] = useState('race');
@@ -37,17 +43,28 @@ export const useRaceStandings = (selectedRace, races, activeYear, isRaceLive) =>
   useEffect(() => {
     let isCancelled = false;
     
+    const raceSeriesCode = selectedRace ? getSeriesCode(selectedRace.series) : '';
+    const raceDate = selectedRace?.parsedDate || (selectedRace?.date ? new Date(selectedRace.date) : null);
+    const isLive = typeof isRaceLive === 'function' && selectedRace ? isRaceLive(selectedRace) : false;
+
     // Запрашиваем данные только если выбрана гонка F1 (прошедшая или текущая)
-    if (selectedRace && (selectedRace.parsedDate < new Date() || isRaceLive(selectedRace)) && selectedRace.series.toLowerCase() === 'f1') {
+    if (selectedRace && (raceDate < new Date() || isLive) && raceSeriesCode === 'f1') {
       setStandingsLoading(true);
 
-      const pastF1RacesUpToCurrent = races
-        .filter(r => r.series.toLowerCase() === 'f1' && 
-                     r.parsedDate.getFullYear() === selectedRace.parsedDate.getFullYear() && 
-                     r.parsedDate <= selectedRace.parsedDate)
+      const pastF1RacesUpToCurrent = (races || [])
+        .filter(r => {
+          const sCode = getSeriesCode(r.series);
+          const pDate = r.parsedDate || (r.date ? new Date(r.date) : null);
+          return sCode === 'f1' && 
+                 pDate && raceDate &&
+                 pDate.getFullYear() === raceDate.getFullYear() && 
+                 pDate <= raceDate;
+        })
         .map(r => r.id);
 
-      const pastIdsQuery = `in.(${pastF1RacesUpToCurrent.join(',')})`;
+      const pastIdsQuery = pastF1RacesUpToCurrent.length > 0 
+        ? `in.(${pastF1RacesUpToCurrent.join(',')})` 
+        : `eq.${selectedRace.id}`;
 
       Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/driver_results?race_id=eq.${selectedRace.id}&order=position.asc`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }).then(r => r.json()),
@@ -87,8 +104,16 @@ export const useRaceStandings = (selectedRace, races, activeYear, isRaceLive) =>
     setShowSeasonStandingsModal(true);
     setSeasonLoading(true);
 
-    const pastF1SeasonIds = races
-      .filter(r => r.series.toLowerCase() === 'f1' && r.parsedDate.getFullYear().toString() === activeYear && r.parsedDate < new Date())
+    const targetYear = String(activeYear);
+    const pastF1SeasonIds = (races || [])
+      .filter(r => {
+        const sCode = getSeriesCode(r.series);
+        const pDate = r.parsedDate || (r.date ? new Date(r.date) : null);
+        return sCode === 'f1' && 
+               pDate && 
+               pDate.getFullYear().toString() === targetYear && 
+               pDate < new Date();
+      })
       .map(r => r.id);
 
     if (pastF1SeasonIds.length === 0) {
