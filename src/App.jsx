@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
+
+// Именованные экспорты (в фигурных скобках)
 import { Header } from './components/Header';
 import { CalendarView } from './components/CalendarView';
 import { SeasonTracker } from './components/SeasonTracker';
-import { RaceModal } from './components/RaceModal';
+import { MonthModal } from './components/MonthModal';
 import { SeasonModal } from './components/SeasonModal';
+
+// Экспорт по умолчанию (без фигурных скобок)
+import RaceModal from './components/RaceModal';
+
+// Сервисы, хуки и константы
 import { getRaces, getSeries } from './services/queries';
 import { useRaceStandings } from './hooks/useRaceStandings';
-import { translations } from './constants/translations';
+import { TRANSLATIONS as translations } from './constants/translations';
 
 export default function App() {
   // Базовые состояния данных
@@ -142,7 +149,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Модальное окно гонки */}
       {selectedRace && (
         <RaceModal
           race={selectedRace}
@@ -150,7 +156,6 @@ export default function App() {
         />
       )}
 
-      {/* Модальное окно турнирной таблицы */}
       {isSeasonModalOpen && (
         <SeasonModal
           isOpen={isSeasonModalOpen}
