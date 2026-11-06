@@ -4,8 +4,8 @@ import sys
 from supabase import Client, create_client
 
 # Считываем переменные окружения
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+SUPABASE_URL = os.environ.get("https://qugdovsytjqjawsesdix.supabase.co")
+SUPABASE_KEY = os.environ.get("sb_publishable_DrPG1dGhbIWU2EARd9v88g_X3c_pPvX")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
   print(
