@@ -1,6 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Clock, ChevronRight } from 'lucide-react';
 import { getSeriesConfig } from '../constants/seriesConfig';
+
+const StopwatchIcon = ({ size = 20, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="13" r="8" />
+    <path d="M12 9v4l2 2" />
+    <path d="M12 5V3" />
+    <path d="M9 2h6" />
+    <path d="M19 7l1.5-1.5" />
+  </svg>
+);
+
+const getSeriesCodeFromId = (seriesProp) => {
+  if (!seriesProp) return 'all';
+  if (typeof seriesProp === 'object') {
+    return (seriesProp.code || seriesProp.short_name || '').toLowerCase();
+  }
+  const idMap = {
+    1: 'f1',
+    2: 'wec',
+    3: 'dtm',
+    4: 'super_gt',
+    5: 'imsa'
+  };
+  if (idMap[Number(seriesProp)]) {
+    return idMap[Number(seriesProp)];
+  }
+  return String(seriesProp).toLowerCase();
+};
 
 function LiveCountdownTimer({ nextRace, lang }) {
   const [now, setNow] = useState(new Date());
@@ -30,24 +57,27 @@ function LiveCountdownTimer({ nextRace, lang }) {
 
   return (
     <div className="flex items-center gap-2 sm:gap-3">
-      <div className="flex flex-col items-center bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 min-w-[50px]">
+      <div className="flex flex-col items-center bg-white/5 rounded-xl px-3 py-2 min-w-[50px]">
         <span className="text-lg sm:text-xl font-black text-white font-mono leading-tight">{d}</span>
-        <span className="text-[9px] font-bold text-zinc-500 uppercase">{lang === 'ru' ? 'Дней' : 'Days'}</span>
+        <span className="text-[9px] font-bold text-amber-400/90 tracking-widest uppercase mt-0.5">{lang === 'ru' ? 'Дней' : 'Days'}</span>
       </div>
-      <span className="text-zinc-600 font-bold">:</span>
-      <div className="flex flex-col items-center bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 min-w-[50px]">
+      <span className="text-zinc-600 font-bold text-lg">:</span>
+
+      <div className="flex flex-col items-center bg-white/5 rounded-xl px-3 py-2 min-w-[50px]">
         <span className="text-lg sm:text-xl font-black text-white font-mono leading-tight">{h}</span>
-        <span className="text-[9px] font-bold text-zinc-500 uppercase">{lang === 'ru' ? 'Часов' : 'Hours'}</span>
+        <span className="text-[9px] font-bold text-amber-400/90 tracking-widest uppercase mt-0.5">{lang === 'ru' ? 'Часов' : 'Hours'}</span>
       </div>
-      <span className="text-zinc-600 font-bold">:</span>
-      <div className="flex flex-col items-center bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 min-w-[50px]">
+      <span className="text-zinc-600 font-bold text-lg">:</span>
+
+      <div className="flex flex-col items-center bg-white/5 rounded-xl px-3 py-2 min-w-[50px]">
         <span className="text-lg sm:text-xl font-black text-white font-mono leading-tight">{m}</span>
-        <span className="text-[9px] font-bold text-zinc-500 uppercase">{lang === 'ru' ? 'Мин' : 'Mins'}</span>
+        <span className="text-[9px] font-bold text-amber-400/90 tracking-widest uppercase mt-0.5">{lang === 'ru' ? 'Мин' : 'Mins'}</span>
       </div>
-      <span className="text-zinc-600 font-bold">:</span>
-      <div className="flex flex-col items-center bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 min-w-[50px] shadow-glow-amber">
+      <span className="text-zinc-600 font-bold text-lg">:</span>
+
+      <div className="flex flex-col items-center bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 min-w-[50px] shadow-[0_0_12px_rgba(245,158,11,0.15)]">
         <span className="text-lg sm:text-xl font-black text-amber-400 font-mono leading-tight">{s}</span>
-        <span className="text-[9px] font-bold text-zinc-500 uppercase">{lang === 'ru' ? 'Сек' : 'Secs'}</span>
+        <span className="text-[9px] font-bold text-amber-400 tracking-widest uppercase mt-0.5">{lang === 'ru' ? 'Сек' : 'Secs'}</span>
       </div>
     </div>
   );
@@ -71,24 +101,28 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', n
 
   if (isAll) {
     if (!nextRace) return null;
-    const nextCfg = getSeriesConfig(nextRace.series_id || nextRace.series);
+    
+    const seriesCodeKey = getSeriesCodeFromId(nextRace.series_id ?? nextRace.series);
+    const nextCfg = getSeriesConfig(seriesCodeKey);
+    const nextLabel = nextCfg.shortLabel ? (nextCfg.shortLabel[lang] || nextCfg.shortLabel) : (nextCfg.label?.[lang] || 'RACE');
+
     const nDate = nextRace.parsedDate || new Date(nextRace.date);
     const formattedDate = nDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short' });
 
     return (
       <div className="w-full bg-surface-card border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
-        <div className="flex items-center gap-3 w-full sm:w-auto min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-purple-400 shrink-0 shadow-glow-purple">
-            <Trophy size={20} />
+        <div className="flex items-center gap-3.5 w-full sm:w-auto min-w-0">
+          <div className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-amber-400 shrink-0 shadow-inner">
+            <StopwatchIcon size={22} />
           </div>
           <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-2">
-              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${nextCfg.badgeClass}`}>
-                {nextCfg.shortLabel?.[lang] || nextCfg.label?.[lang] || nextRace.series}
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${nextCfg.badgeClass}`}>
+                {nextLabel}
               </span>
               <span className="text-xs font-semibold text-zinc-400">{formattedDate}</span>
             </div>
-            <h4 className="text-sm sm:text-base font-bold text-white tracking-tight truncate mt-0.5">
+            <h4 className="text-sm sm:text-base font-bold text-white tracking-tight truncate">
               {nextRace.name}
             </h4>
           </div>
