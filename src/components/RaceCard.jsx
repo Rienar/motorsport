@@ -4,8 +4,30 @@ import { getSeriesConfig } from '../constants/seriesConfig';
 
 export default function RaceCard({ race, onClick, isNext = false, isLiveNow = false, lang = 'ru' }) {
   if (!race) return null;
-  const sCfg = getSeriesConfig(race.series_id || race.series);
+
+  // Маппинг числовых series_id из таблицы races в строковые коды из конфига
+  const getSeriesCodeFromId = (seriesProp) => {
+    if (!seriesProp) return 'all';
+    if (typeof seriesProp === 'object') {
+      return (seriesProp.code || seriesProp.short_name || '').toLowerCase();
+    }
+    const idMap = {
+      1: 'f1',
+      2: 'wec',
+      3: 'dtm',
+      4: 'super_gt',
+      5: 'imsa'
+    };
+    if (idMap[Number(seriesProp)]) {
+      return idMap[Number(seriesProp)];
+    }
+    return String(seriesProp).toLowerCase();
+  };
+
+  const seriesCodeKey = getSeriesCodeFromId(race.series_id ?? race.series);
+  const sCfg = getSeriesConfig(seriesCodeKey);
   const bLabel = sCfg.shortLabel ? (sCfg.shortLabel[lang] || sCfg.shortLabel) : (sCfg.label?.[lang] || 'RACE');
+
   const rDate = race.parsedDate instanceof Date && !isNaN(race.parsedDate) ? race.parsedDate : new Date(race.date);
   const fDate = rDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short', weekday: 'short' });
   const tLocal = race.local_time || rDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' });
