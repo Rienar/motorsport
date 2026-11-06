@@ -1,32 +1,63 @@
 import React, { useMemo } from 'react';
 import { Trophy } from 'lucide-react';
 
-export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSelectRace, activeYear }) => {
+const getSeriesCode = (series) => {
+  if (!series) return '';
+  if (typeof series === 'object') return (series.code || series.short_name || '').toLowerCase();
+  return String(series).toLowerCase();
+};
+
+export const SeasonTracker = ({ 
+  activeSeries = 'all', 
+  races = [], 
+  currentTime = new Date(), 
+  lang = 'ru', 
+  t = {}, 
+  onSelectRace, 
+  activeYear 
+}) => {
   // Фильтруем гонки по выбранной серии И строго по выбранному году
   const seriesRaces = useMemo(() => {
-    if (!races || activeSeries === 'all') return [];
-    const targetYearStr = String(activeYear);
+    if (!races || !activeSeries || activeSeries.toLowerCase() === 'all') return [];
+    const targetYearStr = activeYear ? String(activeYear) : null;
+    const filterSeries = activeSeries.toLowerCase();
+
     return races
       .filter(r => {
-        if (!r || !r.series || !(r.parsedDate instanceof Date) || isNaN(r.parsedDate)) return false;
-        const matchSeries = r.series.toLowerCase() === activeSeries.toLowerCase();
-        const matchYear = r.parsedDate.getFullYear().toString() === targetYearStr;
+        if (!r) return false;
+
+        const seriesCode = getSeriesCode(r.series);
+        const matchSeries = seriesCode === filterSeries;
+
+        // Безопасная работа с датой (Date или ISO string)
+        const dateObj = r.parsedDate instanceof Date && !isNaN(r.parsedDate)
+          ? r.parsedDate
+          : (r.date ? new Date(r.date) : null);
+
+        if (!dateObj || isNaN(dateObj.getTime())) return false;
+
+        const matchYear = targetYearStr ? dateObj.getFullYear().toString() === targetYearStr : true;
         return matchSeries && matchYear;
       })
+      .map(r => ({
+        ...r,
+        parsedDate: r.parsedDate instanceof Date && !isNaN(r.parsedDate) ? r.parsedDate : new Date(r.date)
+      }))
       .sort((a, b) => a.parsedDate - b.parsedDate);
   }, [races, activeSeries, activeYear]);
 
   const trackerData = useMemo(() => {
     if (!seriesRaces || seriesRaces.length === 0) return null;
 
-    const currentYearNum = new Date().getFullYear();
+    const nowTime = currentTime instanceof Date && !isNaN(currentTime) ? currentTime : new Date();
+    const currentYearNum = nowTime.getFullYear();
     const selectedYearNum = parseInt(activeYear, 10) || currentYearNum;
     
     // Проверяем отношения годов
     const isFutureYear = selectedYearNum > currentYearNum;
     const isPastYear = selectedYearNum < currentYearNum;
 
-    const now = currentTime.getTime();
+    const now = nowTime.getTime();
     
     // Если год прошлый — все гонки пройдены. Если будущий — ни одна. Если текущий — считаем по времени.
     const passedRacesCount = isPastYear 
@@ -51,7 +82,7 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
       subtitle = lang === 'ru' ? 'Сезон завершен' : 'Season finished';
     } else if (hasUpcomingRaces) {
       currentRoundNum = passedRacesCount;
-      const diffDays = Math.ceil((nextRace.parsedDate - currentTime) / (1000 * 60 * 60 * 24));
+      const diffDays = Math.ceil((nextRace.parsedDate - nowTime) / (1000 * 60 * 60 * 24));
       const timeStr = nextRace.parsedDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short' });
       
       if (diffDays <= 0) {
@@ -114,7 +145,8 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
 
         <div className="flex items-center gap-1.5 overflow-x-auto py-2 hide-scrollbar">
           {trackerData.roundsList.map((race, idx) => {
-            const isPassed = trackerData.isPastYear || (!trackerData.isFutureYear && race.parsedDate.getTime() <= currentTime.getTime());
+            const nowTime = currentTime instanceof Date && !isNaN(currentTime) ? currentTime : new Date();
+            const isPassed = trackerData.isPastYear || (!trackerData.isFutureYear && race.parsedDate.getTime() <= nowTime.getTime());
             const isNext = !trackerData.isPastYear && !trackerData.isFutureYear && trackerData.hasUpcomingRaces && idx === trackerData.nextRaceIndex;
 
             let dotColor = 'bg-white/20';
@@ -129,7 +161,7 @@ export const SeasonTracker = ({ activeSeries, races, currentTime, lang, t, onSel
                 key={race.id || idx}
                 onClick={() => onSelectRace && onSelectRace(race)}
                 className={`h-2.5 rounded-full transition-all cursor-pointer ${isNext ? 'w-6' : 'w-2.5'} ${dotColor}`}
-                title={`${idx + 1}. ${race.name} (${race.circuit})`}
+                title={`${idx + 1}. ${race.name || ''} (${race.circuit || ''})`}
               />
             );
           })}
