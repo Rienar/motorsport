@@ -8,17 +8,32 @@ import { SeasonModal } from './components/SeasonModal';
 import { getRaces, getSeries } from './services/queries';
 import { useRaceStandings } from './hooks/useRaceStandings';
 
+// Если у вас есть файл переводов, импортируйте его. 
+// В качестве fallback можно использовать пустой объект или подставить импорт:
+// import { translations } from './constants/translations';
+
 export default function App() {
+  // Базовые состояния данных
   const [races, setRaces] = useState([]);
   const [seriesList, setSeriesList] = useState([]);
-  const [selectedSeries, setSelectedSeries] = useState('ALL');
-  const [selectedYear, setSelectedYear] = useState(2025);
-  const [viewMode, setViewMode] = useState('list');
-  const [selectedRace, setSelectedRace] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState(null);
-  const [isSeasonModalOpen, setIsSeasonModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Состояния фильтров и UI (синхронизировано с Header.jsx)
+  const [selectedSeries, setSelectedSeries] = useState('ALL');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); // Текущий год по умолчанию
+  const [viewMode, setViewMode] = useState('list');
+  const [showPast, setShowPast] = useState(true); // Показывать ли прошедшие гонки
+  const [lang, setLang] = useState('ru'); 
+
+  // Состояния модальных окон
+  const [selectedRace, setSelectedRace] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState('all');
+  const [isSeasonModalOpen, setIsSeasonModalOpen] = useState(false);
+
+  // Получение словаря (заглушка на случай отсутствия импорта)
+  // const t = translations?.[lang] || { appTitle: 'Motorsport', months: [] }; 
+  const t = { appTitle: 'Motorsport', months: [], standingsBtn: 'Таблица', pastRaces: 'Прошедшие' };
 
   // Турнирная таблица для модалки итогов сезона
   const { data: standings } = useRaceStandings(selectedYear);
@@ -43,31 +58,53 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
-  }, [selectedYear]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Перезапрашиваем данные только при маунте, фильтрация идет на клиенте
 
-  // Фильтрация этапов с поддержкой структуры series:series_id
-  const filteredRaces = selectedSeries === 'ALL'
-    ? races
-    : races.filter((race) => {
-        const code = race.series?.code?.toLowerCase();
-        const shortName = (race.series?.short_name || race.series)?.toString().toUpperCase();
-        const filterVal = selectedSeries.toLowerCase();
-        return code === filterVal || shortName === selectedSeries.toUpperCase();
-      });
+  // Многоуровневая фильтрация гонок (Серия + Год + Прошедшие)
+  const filteredRaces = races.filter((race) => {
+    // 1. Фильтр по серии
+    const code = race.series?.code?.toLowerCase();
+    const shortName = (race.series?.short_name || race.series)?.toString().toUpperCase();
+    const filterVal = selectedSeries.toLowerCase();
+    const matchesSeries = selectedSeries === 'ALL' || code === filterVal || shortName === selectedSeries.toUpperCase();
+
+    // 2. Фильтр по году (используем поле season из БД или вычисляем из даты)
+    const raceYear = race.season || new Date(race.date).getFullYear();
+    const matchesYear = raceYear === selectedYear;
+
+    // 3. Фильтр прошедших гонок
+    // Устанавливаем начало сегодняшнего дня для корректного сравнения
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const raceDate = new Date(race.date);
+    const isPast = raceDate < today;
+    const matchesPast = showPast ? true : !isPast;
+
+    return matchesSeries && matchesYear && matchesPast;
+  });
 
   return (
     <div className="min-h-screen bg-[#0d0f12] text-zinc-100 flex flex-col font-sans selection:bg-red-500/30">
+      {/* Пропсы строго соответствуют сигнатуре Header.jsx */}
       <Header
+        t={t}
+        lang={lang}
+        onToggleLang={setLang}
         seriesList={seriesList}
-        selectedSeries={selectedSeries}
-        onSelectSeries={setSelectedSeries}
-        selectedYear={selectedYear}
-        onSelectYear={setSelectedYear}
+        activeSeries={selectedSeries}
+        setActiveSeries={setSelectedSeries}
+        activeYear={selectedYear}
+        setActiveYear={setSelectedYear}
+        activeMonth={selectedMonth}
+        setActiveMonth={setSelectedMonth}
+        showPast={showPast}
+        setShowPast={setShowPast}
         viewMode={viewMode}
-        onToggleViewMode={() => setViewMode((prev) => (prev === 'list' ? 'calendar' : 'list'))}
-        onOpenSeasonModal={() => setIsSeasonModalOpen(true)}
+        setViewMode={setViewMode}
         onRefresh={fetchData}
-        isRefreshing={isLoading}
+        loading={isLoading}
+        onOpenSeason={() => setIsSeasonModalOpen(true)}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 space-y-6">
@@ -87,6 +124,10 @@ export default function App() {
               Попробовать снова
             </button>
           </div>
+        ) : filteredRaces.length === 0 ? (
+          <div className="flex items-center justify-center h-64 text-zinc-500 text-sm">
+            Нет гонок по выбранным критериям.
+          </div>
         ) : (
           <>
             <SeasonTracker
@@ -104,6 +145,7 @@ export default function App() {
         )}
       </main>
 
+      {/* Модальное окно гонки */}
       {selectedRace && (
         <RaceModal
           race={selectedRace}
@@ -111,15 +153,17 @@ export default function App() {
         />
       )}
 
-      {selectedMonth !== null && (
+      {/* Модальное окно месяца (открывается из SeasonTracker) */}
+      {selectedMonth && selectedMonth !== 'all' && (
         <MonthModal
           month={selectedMonth}
           races={filteredRaces}
-          onClose={() => setSelectedMonth(null)}
+          onClose={() => setSelectedMonth('all')}
           onSelectRace={setSelectedRace}
         />
       )}
 
+      {/* Модальное окно турнирной таблицы */}
       {isSeasonModalOpen && (
         <SeasonModal
           isOpen={isSeasonModalOpen}
