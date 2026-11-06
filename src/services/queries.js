@@ -57,3 +57,12 @@ export async function getTeamResults(raceId) {
   }
   return data || [];
 }
+
+export async function getSeasonResults(raceIds) {
+  if (!raceIds || raceIds.length === 0) return { drivers: [], teams: [] };
+  const [drivers, teams] = await Promise.all([
+    supabase.from('driver_results').select('*').in('race_id', raceIds),
+    supabase.from('team_results').select('*').in('race_id', raceIds)
+  ]);
+  return { drivers: drivers.data || [], teams: teams.data || [] };
+}
