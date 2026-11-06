@@ -103,7 +103,7 @@ def sync_csv_to_db(csv_file: str = "data/f1_calendar.csv"):
   # Upsert по составному ограничению (series_id, season, name)
   try:
     res = (
-        supabase.table("races")
+        supabase.table("races_test")
         .upsert(rows, on_conflict="series_id,season,name")
         .execute()
     )
