@@ -10,8 +10,11 @@ export const translations = {
     localTime: 'Местное',
     yourTime: 'Ваше время',
     trackLength: 'Длина',
-    lapRecord: 'Рекорд круга',
+    lapRecord: 'Рекорд',
     turns: 'Повороты',
+    laps: 'Круги',
+    lapsShort: 'круг.',
+    turnsShort: 'пов.',
     weather: 'Погода',
     loading: 'Загрузка...',
     errorTitle: 'Ошибка',
@@ -43,6 +46,10 @@ export const translations = {
     monthsShort: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'],
     standingsBtn: 'Зачёт',
     wikiLink: 'Википедия',
+    wiki: 'Вики',
+    addToGoogle: 'Google',
+    downloadApple: 'Apple',
+    trackInfo: 'Информация о трассе',
     eventsOnDay: 'Этапы этого дня'
   },
   en: {
@@ -56,8 +63,11 @@ export const translations = {
     localTime: 'Local',
     yourTime: 'Your Time',
     trackLength: 'Length',
-    lapRecord: 'Lap Record',
+    lapRecord: 'Record',
     turns: 'Turns',
+    laps: 'Laps',
+    lapsShort: 'laps',
+    turnsShort: 'turns',
     weather: 'Weather',
     loading: 'Loading...',
     errorTitle: 'Error',
@@ -89,6 +99,10 @@ export const translations = {
     monthsShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
     standingsBtn: 'Standings',
     wikiLink: 'Wikipedia',
+    wiki: 'Wiki',
+    addToGoogle: 'Google',
+    downloadApple: 'Apple',
+    trackInfo: 'Track Information',
     eventsOnDay: 'Events on this day'
   }
 };
