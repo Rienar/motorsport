@@ -32,8 +32,10 @@ export const Header = ({
   ];
 
   const monthLabel = activeMonth === 'all'
-    ? (t.monthAll || (lang === 'ru' ? 'Все' : 'All'))
+    ? (t.monthAll || (lang === 'ru' ? 'Все месяцы' : 'All months'))
     : (t.months?.[parseInt(activeMonth, 10) - 1] || activeMonth);
+
+  const isF1Active = activeSeries.toLowerCase() === 'f1';
 
   return (
     <header className="w-full bg-[#050608]/90 border-b border-white/[0.06] backdrop-blur-2xl sticky top-0 z-40 px-4 sm:px-8 py-3.5 transition-all">
@@ -68,21 +70,25 @@ export const Header = ({
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={onOpenSeason}
-              className="flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-xl bg-[#0e1015] hover:bg-[#151821] border border-amber-500/20 hover:border-amber-500/40 text-xs font-bold text-amber-400 transition-all shadow-[0_0_12px_rgba(245,158,11,0.1)] active:scale-95"
-            >
-              <Trophy size={14} className="text-amber-400" />
-              <span className="hidden sm:inline">{t.standingsBtn || (lang === 'ru' ? 'Зачёт' : 'Standings')}</span>
-            </button>
+            {/* Кнопка турнирного зачёта — видна только для F1 */}
+            {isF1Active && (
+              <button
+                type="button"
+                onClick={onOpenSeason}
+                className="flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-xl bg-[#0e1015] hover:bg-[#151821] border border-amber-500/20 hover:border-amber-500/40 text-xs font-bold text-amber-400 transition-all shadow-[0_0_12px_rgba(245,158,11,0.1)] active:scale-95 animate-fadeIn"
+              >
+                <Trophy size={14} className="text-amber-400" />
+                <span className="hidden sm:inline">{t.standingsBtn || (lang === 'ru' ? 'Зачёт' : 'Standings')}</span>
+              </button>
+            )}
 
+            {/* Вид: Список (карточки) / Календарь */}
             <div className="flex items-center bg-[#0e1015] rounded-xl p-1 border border-white/10">
               <button
                 type="button"
                 onClick={() => setViewMode('list')}
                 className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
-                title={lang === 'ru' ? 'Список' : 'List'}
+                title={lang === 'ru' ? 'Список карточек' : 'Cards list'}
               >
                 <LayoutList size={15} />
               </button>
@@ -90,7 +96,7 @@ export const Header = ({
                 type="button"
                 onClick={() => setViewMode('calendar')}
                 className={`p-1.5 rounded-lg transition-all ${viewMode === 'calendar' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
-                title={lang === 'ru' ? 'Календарь' : 'Calendar'}
+                title={lang === 'ru' ? 'Календарная сетка' : 'Calendar grid'}
               >
                 <CalendarIcon size={15} />
               </button>
