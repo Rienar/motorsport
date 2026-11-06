@@ -36,33 +36,40 @@ export default function RaceModal({ race, isOpen, onClose, allRaces = [] }) {
   const [results, setResults] = useState({ drivers: [], teams: [] });
   const [weather, setWeather] = useState(null);
 
-  // Единая дата гонки для всех расчетов
+  // БЕЗОПАСНАЯ дата гонки (гарантируем, что это всегда объект Date, а не строка)
   const rDate = useMemo(() => {
-    if (!race) return new Date();
-    return race.parsedDate || new Date(race.date);
+    try {
+      if (!race || !race.date) return new Date();
+      return new Date(race.date);
+    } catch (e) {
+      return new Date();
+    }
   }, [race]);
 
-  // Эффект 1: Загрузка результатов гонки/сезона (без спама)
+  // Эффект 1: Загрузка результатов гонки/сезона
   useEffect(() => {
     let isMounted = true;
     const fetchStandings = async () => {
-      if (!race || !race.id || allRaces.length === 0) return;
+      if (!race || !race.id || !Array.isArray(allRaces) || allRaces.length === 0) return;
+      
       try {
-        const pastRaces = allRaces.filter(r => new Date(r.date) <= rDate);
+        const pastRaces = allRaces.filter(r => r.date && new Date(r.date) <= rDate);
         const pastRaceIds = pastRaces.map(r => r.id);
         
         if (pastRaceIds.length === 0) return;
         
         const seasonData = await getSeasonResults(pastRaceIds);
         
-        if (isMounted) {
-          // Высчитываем общий зачет и очки за текущий этап
+        if (isMounted && seasonData) {
+          // Высчитываем общий зачет и очки за текущий этап (безопасно с ?. и || [])
           const calcPoints = (type) => {
             const standings = {};
-            seasonData[type].forEach(row => {
-              const name = row.driver_name || row.team_name;
+            const dataList = seasonData[type] || [];
+            
+            dataList.forEach(row => {
+              const name = row.driver_name || row.team_name || 'Неизвестно';
               if (!standings[name]) {
-                standings[name] = { name, total: 0, current: 0, team: row.team_name };
+                standings[name] = { name, total: 0, current: 0, team: row.team_name || '' };
               }
               standings[name].total += Number(row.points || 0);
               if (row.race_id === race.id) {
@@ -86,7 +93,7 @@ export default function RaceModal({ race, isOpen, onClose, allRaces = [] }) {
     return () => { isMounted = false; };
   }, [race, allRaces, rDate]);
 
-  // Эффект 2: Загрузка погоды (только для будущих гонок в пределах 8 дней)
+  // Эффект 2: Загрузка погоды
   useEffect(() => {
     let isMounted = true;
     const fetchWeather = async () => {
@@ -95,21 +102,18 @@ export default function RaceModal({ race, isOpen, onClose, allRaces = [] }) {
       const now = new Date();
       const daysDiff = (rDate - now) / (1000 * 60 * 60 * 24);
 
-      // Проверяем: гонка еще не прошла давно (допускаем -1 день) и будет в ближайшие 8 дней
       if (daysDiff >= -1 && daysDiff <= 8) {
         try {
-          // 1. Получаем координаты автодрома
           const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(race.circuit)}&count=1&language=ru&format=json`);
           const geoData = await geoRes.json();
 
           if (geoData.results && geoData.results.length > 0) {
             const { latitude, longitude } = geoData.results[0];
 
-            // 2. Получаем прогноз
             const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto`);
             const weatherData = await weatherRes.json();
 
-            if (isMounted && weatherData.daily) {
+            if (isMounted && weatherData?.daily?.time) {
               const targetDateStr = rDate.toISOString().split('T')[0];
               const dayIndex = weatherData.daily.time.findIndex(t => t === targetDateStr);
 
@@ -136,11 +140,14 @@ export default function RaceModal({ race, isOpen, onClose, allRaces = [] }) {
 
   if (!isOpen || !race) return null;
 
-  // Извлекаем объект трассы (безопасно)
+  // Безопасное извлечение трассы и времени
   const circuitObj = race.circuits ? (Array.isArray(race.circuits) ? race.circuits[0] : race.circuits) : {};
   const currentList = results[activeType] || [];
   const displayList = isExpanded ? currentList : currentList.slice(0, 3);
   const isPastRace = rDate < new Date();
+  
+  // Безопасный рендер времени (не ломаемся, если time == null)
+  const timeStr = typeof race.time === 'string' ? race.time.slice(0, 5) : '—';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={onClose}>
@@ -155,7 +162,7 @@ export default function RaceModal({ race, isOpen, onClose, allRaces = [] }) {
               {race.series?.name || 'ВСЕ'}
             </div>
             <h2 className="text-2xl font-bold text-white mb-2 leading-tight">
-              {race.name}
+              {race.name || 'Гран-при'}
             </h2>
             <div className="flex items-center text-white/50 text-sm">
               <MapPin className="w-4 h-4 mr-1.5" />
@@ -188,8 +195,8 @@ export default function RaceModal({ race, isOpen, onClose, allRaces = [] }) {
             <div className="flex-1 min-w-0">
               <div className="text-[10px] font-bold text-white/50 tracking-wider uppercase mb-0.5">Время старта</div>
               <div className="flex items-center justify-between text-sm font-bold text-white">
-                <div className="flex items-center gap-1"><MapPin className="w-3 h-3 text-white/30" />{race.time ? race.time.slice(0, 5) : '—'}</div>
-                <div className="flex items-center gap-1"><Globe className="w-3 h-3 text-white/30" />{race.time ? race.time.slice(0, 5) : '—'}</div>
+                <div className="flex items-center gap-1"><MapPin className="w-3 h-3 text-white/30" />{timeStr}</div>
+                <div className="flex items-center gap-1"><Globe className="w-3 h-3 text-white/30" />{timeStr}</div>
               </div>
             </div>
           </div>
@@ -226,7 +233,6 @@ export default function RaceModal({ race, isOpen, onClose, allRaces = [] }) {
         {/* Результаты (только для прошедших гонок) */}
         {isPastRace && currentList.length > 0 && (
           <div className="mb-8">
-            {/* Единая строка вкладок */}
             <div className="flex items-center w-full gap-2 mb-4">
               <div className="flex flex-1 bg-white/5 rounded-lg p-1">
                 <button
@@ -267,7 +273,6 @@ export default function RaceModal({ race, isOpen, onClose, allRaces = [] }) {
               </div>
             </div>
 
-            {/* Кнопка "Свернуть" наверху, если список развернут */}
             {isExpanded && (
               <button 
                 onClick={() => setIsExpanded(false)}
@@ -277,7 +282,6 @@ export default function RaceModal({ race, isOpen, onClose, allRaces = [] }) {
               </button>
             )}
 
-            {/* Список результатов */}
             <div className="space-y-1">
               {displayList.map((item, index) => (
                 <div key={index} className="flex items-center justify-between py-2 px-3 hover:bg-white/5 rounded-xl transition-colors group">
@@ -300,7 +304,6 @@ export default function RaceModal({ race, isOpen, onClose, allRaces = [] }) {
               ))}
             </div>
 
-            {/* Кнопка "Развернуть" внизу, если список свернут */}
             {!isExpanded && currentList.length > 3 && (
               <button 
                 onClick={() => setIsExpanded(true)}
@@ -312,7 +315,6 @@ export default function RaceModal({ race, isOpen, onClose, allRaces = [] }) {
           </div>
         )}
 
-        {/* Информация о трассе (скрывается при развернутом списке) */}
         {!isExpanded && (
           <div>
             <div className="text-white font-black text-[13px] tracking-wider uppercase mb-4">
@@ -320,25 +322,10 @@ export default function RaceModal({ race, isOpen, onClose, allRaces = [] }) {
             </div>
             
             <div className="space-y-1">
-              <TrackInfoRow 
-                icon={<MapPin className="w-3.5 h-3.5" />} 
-                label="Рекорд" 
-                value={circuitObj.lap_record} 
-              />
-              <TrackInfoRow 
-                icon={<Globe className="w-3.5 h-3.5" />} 
-                label="Длина" 
-                value={circuitObj.length_km} 
-                unit="км" 
-              />
-              <TrackInfoRow 
-                icon={<Calendar className="w-3.5 h-3.5" />} 
-                label="Повороты" 
-                value={circuitObj.turns} 
-                unit="пов." 
-              />
+              <TrackInfoRow icon={<MapPin className="w-3.5 h-3.5" />} label="Рекорд" value={circuitObj.lap_record} />
+              <TrackInfoRow icon={<Globe className="w-3.5 h-3.5" />} label="Длина" value={circuitObj.length_km} unit="км" />
+              <TrackInfoRow icon={<Calendar className="w-3.5 h-3.5" />} label="Повороты" value={circuitObj.turns} unit="пов." />
               
-              {/* Погода */}
               {weather && (
                 <div className="flex justify-between items-center py-2 mt-2 border-t border-white/10">
                   <div className="flex items-center gap-2 text-white/50 text-[11px] font-bold uppercase tracking-wider">
