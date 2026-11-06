@@ -1,17 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
 
-// Именованные компоненты
 import { Header } from './components/Header';
 import { CalendarView } from './components/CalendarView';
 import { SeasonTracker } from './components/SeasonTracker';
 import { SeasonModal } from './components/SeasonModal';
-
-// Экспорты по умолчанию
 import RaceModal from './components/RaceModal';
 import RaceCard from './components/RaceCard';
 
-// Сервисы, хуки и константы
 import { getRaces, getSeries } from './services/queries';
 import { useRaceStandings } from './hooks/useRaceStandings';
 import { translations } from './constants/translations';
@@ -40,20 +36,15 @@ export default function App() {
   const [selectedRace, setSelectedRace] = useState(null);
   const [isSeasonModalOpen, setIsSeasonModalOpen] = useState(false);
 
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
+  // Фиксируем время на момент рендера (избавились от setInterval, ломавшего скролл)
+  const now = new Date();
   const t = translations?.[lang] || translations?.ru || {};
 
   const isRaceLive = (race) => {
     if (!race || !race.date) return false;
     const raceTime = (race.parsedDate || new Date(race.date)).getTime();
-    const nowMs = now.getTime();
-    return nowMs >= raceTime && nowMs <= raceTime + 1000 * 60 * 180;
+    const currentMs = Date.now();
+    return currentMs >= raceTime && currentMs <= raceTime + 1000 * 60 * 180;
   };
 
   const standingsData = useRaceStandings(selectedRace, races, selectedYear, isRaceLive);
@@ -62,28 +53,15 @@ export default function App() {
     try {
       setIsLoading(true);
       setError(null);
-      const [racesData, seriesData] = await Promise.all([
-        getRaces(),
-        getSeries(),
-      ]);
+      const [racesData, seriesData] = await Promise.all([getRaces(), getSeries()]);
 
       const formattedRaces = (racesData || []).map(r => ({
         ...r,
         parsedDate: r.date ? new Date(r.date) : new Date()
       }));
 
-      const cleanRaces = formattedRaces.filter(r => {
-        const code = (typeof r.series === 'object' ? r.series?.code : r.series)?.toLowerCase();
-        return code !== 'imsa';
-      });
-
-      const cleanSeries = (seriesData || []).filter(s => {
-        const code = (s.code || s.short_name || '').toLowerCase();
-        return code !== 'imsa';
-      });
-
-      setRaces(cleanRaces);
-      setSeriesList(cleanSeries);
+      setRaces(formattedRaces.filter(r => (typeof r.series === 'object' ? r.series?.code : r.series)?.toLowerCase() !== 'imsa'));
+      setSeriesList((seriesData || []).filter(s => (s.code || s.short_name || '').toLowerCase() !== 'imsa'));
     } catch (err) {
       console.error('Ошибка загрузки данных:', err);
       setError(err);
@@ -92,13 +70,10 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const availableYears = useMemo(() => {
-    const set = new Set();
-    set.add(currentYearStr);
+    const set = new Set([currentYearStr]);
     races.forEach(r => {
       const yr = r.season ? String(r.season) : (r.date ? r.date.substring(0, 4) : null);
       if (yr) set.add(yr);
@@ -107,89 +82,68 @@ export default function App() {
   }, [races, currentYearStr]);
 
   const nextRace = useMemo(() => {
-    const nowMs = now.getTime();
     const futureRaces = races
-      .filter(r => (r.parsedDate || new Date(r.date)).getTime() + 1000 * 60 * 180 > nowMs)
+      .filter(r => (r.parsedDate || new Date(r.date)).getTime() + 1000 * 60 * 180 > now.getTime())
       .sort((a,b) => (a.parsedDate || new Date(a.date)) - (b.parsedDate || new Date(b.date)));
     return futureRaces.length > 0 ? futureRaces[0] : null;
-  }, [races, now]);
+  }, [races]); // Зависимость от now убрана для предотвращения ререндера
 
   const filteredRaces = useMemo(() => {
     return races.filter((race) => {
       const seriesCode = (typeof race.series === 'object' ? race.series?.code || race.series?.short_name : race.series)?.toLowerCase() || '';
-      const filterVal = selectedSeries.toLowerCase();
-      const matchesSeries = selectedSeries === 'ALL' || seriesCode === filterVal;
-
-      const raceDate = race.parsedDate || new Date(race.date);
-      const raceYear = Number(race.season) || raceDate.getFullYear();
-      const matchesYear = raceYear === Number(selectedYear);
-
-      const raceMonth = raceDate.getMonth() + 1;
-      const matchesMonth = selectedMonth === 0 || raceMonth === selectedMonth;
-
+      const matchSeries = selectedSeries === 'ALL' || seriesCode === selectedSeries.toLowerCase();
+      const rDate = race.parsedDate || new Date(race.date);
+      const matchYear = (Number(race.season) || rDate.getFullYear()) === Number(selectedYear);
+      const matchMonth = selectedMonth === 0 || (rDate.getMonth() + 1) === selectedMonth;
+      
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const isPast = raceDate < today;
-      const matchesPast = showPast ? true : !isPast;
+      const matchPast = showPast ? true : !(rDate < today);
 
-      return matchesSeries && matchesYear && matchesMonth && matchesPast;
+      return matchSeries && matchYear && matchMonth && matchPast;
     });
   }, [races, selectedSeries, selectedYear, selectedMonth, showPast]);
 
   const calendarDays = useMemo(() => {
-    const year = Number(selectedYear);
-    const month = calMonth;
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-
-    let startDayOfWeek = firstDay.getDay() - 1;
-    if (startDayOfWeek === -1) startDayOfWeek = 6;
+    const y = Number(selectedYear), m = calMonth;
+    const firstDay = new Date(y, m, 1), lastDay = new Date(y, m + 1, 0);
+    let startDay = firstDay.getDay() - 1;
+    if (startDay === -1) startDay = 6;
 
     const days = [];
-    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    const prevLastDay = new Date(y, m, 0).getDate();
     
-    for (let i = startDayOfWeek - 1; i >= 0; i--) {
-      const d = new Date(year, month - 1, prevMonthLastDay - i);
-      days.push({ date: d, dayNumber: d.getDate(), isCurrentMonth: false, races: [] });
+    for (let i = startDay - 1; i >= 0; i--) {
+      days.push({ date: new Date(y, m - 1, prevLastDay - i), dayNumber: prevLastDay - i, isCurrentMonth: false, races: [] });
     }
 
     for (let i = 1; i <= lastDay.getDate(); i++) {
-      const d = new Date(year, month, i);
+      const d = new Date(y, m, i);
       const dayRaces = filteredRaces.filter(r => {
-        const rDate = r.parsedDate || new Date(r.date);
-        return rDate.getFullYear() === year && rDate.getMonth() === month && rDate.getDate() === i;
+        const rd = r.parsedDate || new Date(r.date);
+        return rd.getFullYear() === y && rd.getMonth() === m && rd.getDate() === i;
       });
       days.push({ date: d, dayNumber: i, isCurrentMonth: true, races: dayRaces });
     }
 
-    const remainingDays = 7 - (days.length % 7);
-    if (remainingDays < 7) {
-      for (let i = 1; i <= remainingDays; i++) {
-        const d = new Date(year, month + 1, i);
-        days.push({ date: d, dayNumber: i, isCurrentMonth: false, races: [] });
+    const remain = 7 - (days.length % 7);
+    if (remain < 7) {
+      for (let i = 1; i <= remain; i++) {
+        days.push({ date: new Date(y, m + 1, i), dayNumber: i, isCurrentMonth: false, races: [] });
       }
     }
     return days;
   }, [selectedYear, calMonth, filteredRaces]);
 
-  const availableMonthsCal = useMemo(() => Array.from({ length: 12 }, (_, i) => i), []);
-
   return (
-    <div className="min-h-screen bg-[#070709] text-zinc-100 flex flex-col font-sans selection:bg-purple-500/30">
+    <div className="min-h-screen bg-surface-base text-zinc-100 flex flex-col font-sans selection:bg-purple-500/30">
       <Header
-        lang={lang}
-        onToggleLang={setLang}
-        activeSeries={selectedSeries}
-        setActiveSeries={setSelectedSeries}
-        activeYear={selectedYear}
-        setActiveYear={setSelectedYear}
-        availableYears={availableYears}
-        activeMonth={selectedMonth}
-        setIsMonthModalOpen={setIsMonthModalOpen}
-        showPast={showPast}
-        setShowPast={setShowPast}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
+        lang={lang} onToggleLang={setLang}
+        activeSeries={selectedSeries} setActiveSeries={setSelectedSeries}
+        activeYear={selectedYear} setActiveYear={setSelectedYear} availableYears={availableYears}
+        activeMonth={selectedMonth} setIsMonthModalOpen={setIsMonthModalOpen}
+        showPast={showPast} setShowPast={setShowPast}
+        viewMode={viewMode} setViewMode={setViewMode}
         onOpenSeason={() => setIsSeasonModalOpen(true)}
       />
 
@@ -203,20 +157,13 @@ export default function App() {
           <div className="flex flex-col items-center justify-center h-64 text-red-400 space-y-2">
             <p className="font-semibold">{lang === 'ru' ? 'Ошибка загрузки' : 'Failed to load'}</p>
             <p className="text-xs text-zinc-500">{error.message}</p>
-            <button onClick={fetchData} className="mt-2 px-3 py-1.5 bg-[#0e1015] border border-white/10 hover:bg-zinc-800 text-xs text-zinc-200 rounded-lg transition-colors">
+            <button onClick={fetchData} className="mt-2 px-3 py-1.5 bg-surface-card border border-white/10 hover:bg-zinc-800 text-xs text-zinc-200 rounded-lg transition-colors">
               {lang === 'ru' ? 'Повторить' : 'Retry'}
             </button>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            
-            <SeasonTracker
-              races={races}
-              activeSeries={selectedSeries}
-              activeYear={selectedYear}
-              lang={lang}
-              nextRace={nextRace}
-            />
+            <SeasonTracker races={races} activeSeries={selectedSeries} activeYear={selectedYear} lang={lang} nextRace={nextRace} />
 
             {viewMode === 'list' ? (
               filteredRaces.length === 0 ? (
@@ -225,96 +172,48 @@ export default function App() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-4 w-full">
-                  {filteredRaces.map((race) => {
-                    const isLiveNow = isRaceLive(race);
-                    return (
-                      <RaceCard
-                        key={race.id}
-                        race={race}
-                        onClick={() => setSelectedRace(race)}
-                        isNext={nextRace && race.id === nextRace.id}
-                        isLiveNow={isLiveNow}
-                        lang={lang}
-                      />
-                    );
-                  })}
+                  {filteredRaces.map((race) => (
+                    <RaceCard key={race.id} race={race} onClick={() => setSelectedRace(race)} isNext={nextRace && race.id === nextRace.id} isLiveNow={isRaceLive(race)} lang={lang} />
+                  ))}
                 </div>
               )
             ) : (
               <CalendarView
-                activeYear={selectedYear}
-                calMonth={calMonth}
-                setCalMonth={setCalMonth}
-                availableMonths={availableMonthsCal}
+                activeYear={selectedYear} calMonth={calMonth} setCalMonth={setCalMonth} availableMonths={Array.from({length: 12}, (_,i)=>i)}
                 handlePrevMonth={() => setCalMonth(prev => (prev === 0 ? 11 : prev - 1))}
                 handleNextMonth={() => setCalMonth(prev => (prev === 11 ? 0 : prev + 1))}
-                calendarDays={calendarDays}
-                isRaceLive={isRaceLive}
+                calendarDays={calendarDays} isRaceLive={isRaceLive}
                 openDayModal={(racesOnDay) => { if (racesOnDay && racesOnDay[0]) setSelectedRace(racesOnDay[0]); }}
-                lang={lang}
-                t={t}
+                lang={lang} t={t}
               />
             )}
           </div>
         )}
       </main>
 
-      {/* Модальное Окно Месяцев */}
       {isMonthModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#121216] border border-white/10 w-full max-w-sm rounded-3xl p-6 relative shadow-2xl">
+          <div className="bg-surface-modal border border-white/10 w-full max-w-sm rounded-3xl p-6 relative shadow-2xl">
             <button onClick={() => setIsMonthModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 p-1.5 rounded-full transition-colors">
               <X size={18} />
             </button>
             <h3 className="text-lg font-bold text-white mb-4">{lang === 'ru' ? 'Выберите месяц' : 'Select Month'}</h3>
-            
-            <button 
-              onClick={() => { setSelectedMonth(0); setIsMonthModalOpen(false); }}
-              className={`w-full py-2.5 rounded-xl text-sm font-bold mb-3 transition-colors ${selectedMonth === 0 ? 'bg-indigo-600 text-white' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}
-            >
+            <button onClick={() => { setSelectedMonth(0); setIsMonthModalOpen(false); }} className={`w-full py-2.5 rounded-xl text-sm font-bold mb-3 transition-colors ${selectedMonth === 0 ? 'bg-indigo-600 text-white' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}>
               {lang === 'ru' ? 'Все месяцы' : 'All Months'}
             </button>
-
             <div className="grid grid-cols-3 gap-2">
-              {(lang === 'ru' ? RU_MONTHS : EN_MONTHS).slice(1).map((m, idx) => {
-                const monthIndex = idx + 1;
-                return (
-                  <button
-                    key={m}
-                    onClick={() => { setSelectedMonth(monthIndex); setIsMonthModalOpen(false); }}
-                    className={`py-2 rounded-xl text-sm font-bold transition-all ${
-                      selectedMonth === monthIndex 
-                        ? 'bg-indigo-600 text-white shadow-[0_0_12px_rgba(99,102,241,0.4)]' 
-                        : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                    }`}
-                  >
-                    {m}
-                  </button>
-                );
-              })}
+              {(lang === 'ru' ? RU_MONTHS : EN_MONTHS).slice(1).map((m, idx) => (
+                <button key={m} onClick={() => { setSelectedMonth(idx + 1); setIsMonthModalOpen(false); }} className={`py-2 rounded-xl text-sm font-bold transition-all ${selectedMonth === idx + 1 ? 'bg-indigo-600 text-white shadow-glow-purple' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}>
+                  {m}
+                </button>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {selectedRace && (
-        <RaceModal
-          race={selectedRace}
-          onClose={() => setSelectedRace(null)}
-          standingsData={standingsData}
-        />
-      )}
-
-      {isSeasonModalOpen && (
-        <SeasonModal
-          isOpen={isSeasonModalOpen}
-          onClose={() => setIsSeasonModalOpen(false)}
-          year={selectedYear}
-          standingsData={standingsData}
-          lang={lang}
-          t={t}
-        />
-      )}
+      {selectedRace && <RaceModal race={selectedRace} onClose={() => setSelectedRace(null)} standingsData={standingsData} lang={lang} />}
+      {isSeasonModalOpen && <SeasonModal isOpen={isSeasonModalOpen} onClose={() => setIsSeasonModalOpen(false)} year={selectedYear} standingsData={standingsData} lang={lang} t={t} />}
     </div>
   );
 }
