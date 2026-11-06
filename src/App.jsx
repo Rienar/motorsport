@@ -34,7 +34,8 @@ export default function App() {
 
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [viewMode, setViewMode] = useState('list');
-  const [showPast, setShowPast] = useState(true);
+  // Прошлые гонки скрыты по умолчанию
+  const [showPast, setShowPast] = useState(false);
 
   const [selectedRace, setSelectedRace] = useState(null);
   const [isSeasonModalOpen, setIsSeasonModalOpen] = useState(false);
