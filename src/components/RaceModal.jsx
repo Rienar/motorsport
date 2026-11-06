@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getSeriesConfig } from '../constants/seriesConfig';
 import { translations } from '../constants/translations';
-import { Sun, CloudRain, CloudSun, CloudSnow, CloudFog, CloudLightning, Globe } from 'lucide-react';
+import { Sun, CloudRain, CloudSun, CloudSnow, CloudFog, CloudLightning, Globe, X, MapPin, Calendar, Clock, CalendarPlus, ExternalLink, Users, Shield } from 'lucide-react';
 
-// Локальные SVG-иконки для дизайна
+import { getDriverResults, getTeamResults } from '../services/queries'; 
+
+// Локальные SVG-иконки (Оставлены только уникальные)
 const Speedometer = ({ size, className }) => (
   <svg className={className} width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l4-4" />
@@ -33,53 +35,6 @@ const Apple = ({ size, className }) => (
   </svg>
 );
 
-const XIcon = ({ size }) => (
-  <svg width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-    <line x1="18" y1="6" x2="6" y2="18" strokeLinecap="round" strokeLinejoin="round" />
-    <line x1="6" y1="6" x2="18" y2="18" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const MapPinIcon = ({ size, className }) => (
-  <svg className={className} width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-    <circle cx="12" cy="10" r="3" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const CalendarIcon = ({ size, className }) => (
-  <svg className={className} width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" strokeLinecap="round" strokeLinejoin="round" />
-    <line x1="16" y1="2" x2="16" y2="6" strokeLinecap="round" strokeLinejoin="round" />
-    <line x1="8" y1="2" x2="8" y2="6" strokeLinecap="round" strokeLinejoin="round" />
-    <line x1="3" y1="10" x2="21" y2="10" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const ClockIcon = ({ size, className }) => (
-  <svg className={className} width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-    <circle cx="12" cy="12" r="10" strokeLinecap="round" strokeLinejoin="round" />
-    <polyline points="12 6 12 12 16 14" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const CalendarPlusIcon = ({ size, className }) => (
-  <svg className={className} width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" strokeLinecap="round" strokeLinejoin="round" />
-    <line x1="16" y1="2" x2="16" y2="6" strokeLinecap="round" strokeLinejoin="round" />
-    <line x1="8" y1="2" x2="8" y2="6" strokeLinecap="round" strokeLinejoin="round" />
-    <line x1="3" y1="10" x2="21" y2="10" strokeLinecap="round" strokeLinejoin="round" />
-    <line x1="12" y1="14" x2="12" y2="18" strokeLinecap="round" strokeLinejoin="round" />
-    <line x1="10" y1="16" x2="14" y2="16" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const ExternalLinkIcon = ({ size, className }) => (
-  <svg className={className} width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6m4-3h6v6m-11 5L21 3" />
-  </svg>
-);
-
 const getWeatherIcon = (code) => {
   if ([0, 1].includes(code)) return <Sun size={16} className="text-yellow-400" />;
   if ([2, 3].includes(code)) return <CloudSun size={16} className="text-zinc-300" />;
@@ -90,39 +45,113 @@ const getWeatherIcon = (code) => {
   return <CloudSun size={16} className="text-zinc-400" />;
 };
 
+// DRY: Вспомогательный компонент для строк информации о трассе
+const TrackInfoRow = ({ Icon, iconElement, label, value, unit }) => (
+  <div className="flex items-center justify-between">
+    <div className="flex items-center gap-2.5">
+      {iconElement || <Icon size={16} className="text-zinc-400" />}
+      <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">{label}</span>
+    </div>
+    <span className="text-sm text-white font-bold">
+      {value} {unit && <span className="text-xs text-zinc-500 font-medium">{unit}</span>}
+    </span>
+  </div>
+);
+
 export default function RaceModal({ race, onClose, standingsData, lang = 'ru' }) {
-  const [activeTab, setActiveTab] = useState('race');
+  const [resultsTab, setResultsTab] = useState('stage'); // 'stage' | 'after'
+  const [standingsType, setStandingsType] = useState('drivers'); // 'drivers' | 'teams'
   const [weather, setWeather] = useState(null);
+  const [raceResults, setRaceResults] = useState(null);
 
-  React.useEffect(() => {
-    if (!race) return;
-    const rDate = race.parsedDate instanceof Date && !isNaN(race.parsedDate) ? race.parsedDate : new Date(race.date);
-    const now = new Date();
-    const diffDays = (rDate.getTime() - now.getTime()) / (1000 * 3600 * 24);
+  const circuit = race ? (Array.isArray(race.circuits) ? race.circuits[0] : (race.circuits || {})) : {};
+  // Единое вычисление даты для всех блоков
+  const rDate = race?.parsedDate instanceof Date && !isNaN(race.parsedDate) ? race.parsedDate : new Date(race?.date);
+
+  // --- 1. ХУК: ЗАГРУЗКА ПОГОДЫ ---
+  useEffect(() => {
+    if (!race?.id) return;
+    let isMounted = true;
+
+    const fetchWeather = async () => {
+      const diffDays = (rDate.getTime() - new Date().getTime()) / (1000 * 3600 * 24);
+      
+      if (diffDays >= -1 && diffDays <= 10) {
+        try {
+          let lat = circuit.lat || race.lat;
+          let lng = circuit.lng || race.lng;
+          
+          if (!lat || !lng) {
+            const query = circuit.name || circuit.country || race.name;
+            const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1`);
+            const geoData = await geoRes.json();
+            if (geoData.results && geoData.results.length > 0) {
+              lat = geoData.results[0].latitude;
+              lng = geoData.results[0].longitude;
+            }
+          }
+
+          if (lat && lng) {
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto`);
+            const data = await res.json();
+            if (data.daily) {
+              const dateStr = rDate.toISOString().split('T')[0];
+              const idx = data.daily.time?.indexOf(dateStr) !== -1 ? data.daily.time.indexOf(dateStr) : 0;
+              if (idx !== undefined && isMounted) {
+                setWeather({
+                  maxTemp: Math.round(data.daily.temperature_2m_max[idx]),
+                  minTemp: Math.round(data.daily.temperature_2m_min[idx]),
+                  code: data.daily.weathercode[idx]
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Ошибка загрузки погоды:", err);
+        }
+      }
+    };
     
-    // Получаем координаты (из circuits или напрямую из race)
-    const lat = race.circuits?.lat || race.lat;
-    const lng = race.circuits?.lng || race.lng;
+    fetchWeather();
+    return () => { isMounted = false; };
+  }, [race?.id, circuit.lat, circuit.lng]);
 
-    // Загружаем погоду только если гонка предстоит в ближайшие 7-10 дней
-    if (diffDays >= -1 && diffDays <= 10 && lat && lng) {
-      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto`)
-        .then(res => res.json())
-        .then(data => {
-          if (!data.daily) return;
-          const dateStr = rDate.toISOString().split('T')[0];
-          const idx = data.daily.time?.indexOf(dateStr) !== -1 ? data.daily.time.indexOf(dateStr) : 0;
-          if (idx !== undefined) {
-            setWeather({
-              maxTemp: Math.round(data.daily.temperature_2m_max[idx]),
-              minTemp: Math.round(data.daily.temperature_2m_min[idx]),
-              code: data.daily.weathercode[idx]
+  // --- 2. ХУК: ЗАГРУЗКА РЕЗУЛЬТАТОВ ---
+  useEffect(() => {
+    if (!race?.id) return;
+    let isMounted = true;
+    
+    const isPast = rDate < new Date();
+    const isF1 = (race.series_id === 1 || String(race.series?.code || race.series).toLowerCase() === 'f1');
+    
+    if (isPast && isF1) {
+      const loadResults = async () => {
+        try {
+          const [driversData, teamsData] = await Promise.all([
+            getDriverResults(race.id),
+            getTeamResults(race.id)
+          ]);
+          
+          if (isMounted) {
+            setRaceResults({
+              stage: {
+                drivers: driversData || [],
+                teams: teamsData || []
+              }
             });
           }
-        })
-        .catch(err => console.error("Ошибка загрузки погоды:", err));
+        } catch (e) {
+          console.error('Ошибка загрузки результатов:', e);
+        }
+      };
+      
+      loadResults();
+    } else {
+      setRaceResults(null);
     }
-  }, [race]);
+
+    return () => { isMounted = false; };
+  }, [race?.id]);
 
   if (!race) return null;
 
@@ -130,20 +159,20 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
   const sCfg = getSeriesConfig(race.series_id || race.series);
   const bLabel = sCfg.shortLabel ? (sCfg.shortLabel[lang] || sCfg.shortLabel) : (sCfg.label?.[lang] || 'RACE');
   
-  const rDate = race.parsedDate instanceof Date && !isNaN(race.parsedDate) ? race.parsedDate : new Date(race.date);
-  const formattedDate = rDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', {
-    day: 'numeric', month: 'long'
-  });
+  const formattedDate = rDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'long' });
   const moscowTime = rDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' });
   const localTime = race.local_time || rDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' });
 
-  const cName = race.circuits?.country || race.country || race.location_country || '';
-  const tName = race.circuits?.name || race.circuit || race.location || '';
-  const lapRecord = race.circuits?.lap_record ? race.circuits.lap_record.replace(/\s*\(.*?\)/, '') : null;
-  const lapsCount = race.circuits?.laps || null;
-  const turnsCount = race.circuits?.turns || null;
-  // Ссылка берётся строго из БД (с самой гонки или с трассы)
-  const wikiUrl = race.wikipedia_url || race.circuits?.wikipedia_url || null;
+  const cName = circuit.country || race.country || race.location_country || '';
+  const tName = circuit.name || race.circuit || race.location || '';
+  const lapRecord = circuit.lap_record ? circuit.lap_record.replace(/\s*\(.*?\)/, '') : null;
+  const lapsCount = circuit.laps || null;
+  const lengthKm = circuit.length_km || null;
+  const turnsCount = circuit.turns || null;
+  const wikiUrl = race.wikipedia_url || circuit.wikipedia_url || null;
+
+  const finalResults = (standingsData && standingsData.stage) ? standingsData : raceResults;
+  const showResults = finalResults && finalResults.stage && (finalResults.stage.drivers?.length > 0 || finalResults.stage.teams?.length > 0);
 
   const handleGoogleCalendar = () => {
     const start = rDate.toISOString().replace(/-|:|\.\d\d\d/g, '');
@@ -151,8 +180,7 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
     const end = endRace.toISOString().replace(/-|:|\.\d\d\d/g, '');
     const title = encodeURIComponent(`${bLabel} - ${race.name}`);
     const loc = encodeURIComponent(`${cName}, ${tName}`);
-    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&location=${loc}`;
-    window.open(url, '_blank');
+    window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&location=${loc}`, '_blank');
   };
 
   const handleAppleCalendar = () => {
@@ -163,16 +191,9 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
     const loc = `${cName}, ${tName}`;
 
     const icsData = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//Motorsport Tracker//RU',
-      'BEGIN:VEVENT',
-      `DTSTART:${start}`,
-      `DTEND:${end}`,
-      `SUMMARY:${title}`,
-      `LOCATION:${loc}`,
-      'END:VEVENT',
-      'END:VCALENDAR'
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Motorsport Tracker//RU',
+      'BEGIN:VEVENT', `DTSTART:${start}`, `DTEND:${end}`, `SUMMARY:${title}`, `LOCATION:${loc}`,
+      'END:VEVENT', 'END:VCALENDAR'
     ].join('\n');
 
     const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8' });
@@ -184,6 +205,31 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
     document.body.removeChild(link);
   };
 
+  const renderResultsList = (list, isAfter) => {
+    if (!list || list.length === 0) return <div className="text-zinc-500 text-xs py-4 text-center">{lang === 'ru' ? 'Нет данных' : 'No data'}</div>;
+    return (
+      <div className="flex flex-col gap-1.5 mt-3 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+        {list.map((item, idx) => (
+          <div key={idx} className="flex items-center justify-between py-2 px-3 bg-white/[0.03] border border-white/5 rounded-xl hover:bg-white/[0.05] transition-colors">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-black text-zinc-500 w-4 text-center">{item.position}</span>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-white">{item.driver_name || item.team_name}</span>
+                {item.driver_name && <span className="text-[10px] text-zinc-500 uppercase tracking-wide">{item.team_name}</span>}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {isAfter && item.pointsDiff > 0 && (
+                <span className="text-[10px] font-black text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-md">+{item.pointsDiff}</span>
+              )}
+              <span className="text-sm font-black text-white w-8 text-right">{item.points}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 pointer-events-none">
       <div 
@@ -191,13 +237,13 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
         onClick={onClose}
       />
       
-      <div className="bg-surface-modal border border-white/10 w-full max-w-lg rounded-3xl p-6 sm:p-8 relative pointer-events-auto shadow-[0_25px_70px_rgba(0,0,0,0.7)] flex flex-col gap-6 backdrop-blur-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface-modal border border-white/10 w-full max-w-lg rounded-3xl p-6 sm:p-8 relative pointer-events-auto shadow-[0_25px_70px_rgba(0,0,0,0.7)] flex flex-col gap-6 backdrop-blur-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
         
         <button 
           onClick={onClose} 
           className="absolute top-5 right-5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors"
         >
-          <XIcon size={20} />
+          <X size={20} />
         </button>
 
         <div className="flex flex-col items-start gap-3 pr-8">
@@ -208,7 +254,7 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
             {race.name}
           </h2>
           <div className="flex items-center gap-2 text-zinc-400 text-sm sm:text-base">
-            <MapPinIcon size={16} className="text-zinc-500 shrink-0" />
+            <MapPin size={16} className="text-zinc-500 shrink-0" />
             <span>{cName}{cName && tName ? ', ' : ''}{tName || 'TBA'}</span>
           </div>
         </div>
@@ -216,7 +262,7 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-surface-field border border-white/10 rounded-2xl p-5 shadow-inner">
           <div className="flex items-start gap-4">
             <div className="p-2.5 bg-indigo-600 text-white rounded-xl shrink-0 shadow-[0_0_15px_rgba(79,70,229,0.6)]">
-              <CalendarIcon size={22} className="text-white" />
+              <Calendar size={22} className="text-white" />
             </div>
             <div className="flex flex-col">
               <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mb-1">{lang === 'ru' ? 'Дата' : 'Date'}</span>
@@ -226,13 +272,13 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
           
           <div className="flex items-start gap-4">
             <div className="p-2.5 bg-amber-600 text-white rounded-xl shrink-0 shadow-[0_0_15px_rgba(217,119,6,0.6)]">
-              <ClockIcon size={22} className="text-white" />
+              <Clock size={22} className="text-white" />
             </div>
             <div className="flex flex-col w-full">
               <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mb-1">{lang === 'ru' ? 'Время старта' : 'Start Time'}</span>
               <div className="flex items-center gap-4 mt-0.5">
                 <div className="flex items-center gap-1.5" title={lang === 'ru' ? 'Местное время' : 'Local time'}>
-                  <MapPinIcon size={14} className="text-zinc-500" />
+                  <MapPin size={14} className="text-zinc-500" />
                   <span className="text-white font-bold text-sm sm:text-base">{localTime}</span>
                 </div>
                 <div className="flex items-center gap-1.5" title={lang === 'ru' ? 'Московское время' : 'Moscow time'}>
@@ -249,7 +295,7 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
             onClick={handleGoogleCalendar}
             className="flex items-center justify-center gap-1.5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-white transition-all shadow-sm active:scale-95"
           >
-            <CalendarPlusIcon size={15} className="text-indigo-400 shrink-0" />
+            <CalendarPlus size={15} className="text-indigo-400 shrink-0" />
             <span className="truncate">Google</span>
           </button>
           <button 
@@ -266,63 +312,87 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-1.5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-white transition-all shadow-sm active:scale-95 cursor-pointer"
             >
-              <ExternalLinkIcon size={15} className="text-zinc-400 shrink-0" />
+              <ExternalLink size={15} className="text-zinc-400 shrink-0" />
               <span className="truncate">Вики</span>
             </a>
           ) : (
             <div className="flex items-center justify-center gap-1.5 py-2.5 bg-white/[0.02] border border-white/5 rounded-xl text-[11px] sm:text-xs font-semibold text-zinc-600 cursor-not-allowed">
-              <ExternalLinkIcon size={15} className="text-zinc-600 shrink-0" />
+              <ExternalLink size={15} className="text-zinc-600 shrink-0" />
               <span className="truncate">Вики</span>
             </div>
           )}
         </div>
 
-        {/* Инфо о трассе (Отображается всегда, даже если данных в БД пока нет) */}
+        {/* --- Блок Результатов --- */}
+        {showResults && (
+          <div className="flex flex-col gap-3 mt-2">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
+                <button 
+                  onClick={() => setResultsTab('stage')} 
+                  className={`px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all ${resultsTab === 'stage' ? 'bg-indigo-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  {t.stageResults || 'Итоги этапа'}
+                </button>
+                {finalResults.after && (
+                  <button 
+                    onClick={() => setResultsTab('after')} 
+                    className={`px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all ${resultsTab === 'after' ? 'bg-amber-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  >
+                    {t.afterStage || 'Зачёт после этапа'}
+                  </button>
+                )}
+              </div>
+              
+              <div className="flex gap-2">
+                <button onClick={() => setStandingsType('drivers')} className={`p-1.5 rounded-lg border transition-colors ${standingsType === 'drivers' ? 'bg-white/10 border-white/20 text-white' : 'bg-transparent border-transparent text-zinc-500 hover:text-zinc-300'}`}>
+                  <Users size={16} />
+                </button>
+                <button onClick={() => setStandingsType('teams')} className={`p-1.5 rounded-lg border transition-colors ${standingsType === 'teams' ? 'bg-white/10 border-white/20 text-white' : 'bg-transparent border-transparent text-zinc-500 hover:text-zinc-300'}`}>
+                  <Shield size={16} />
+                </button>
+              </div>
+            </div>
+            {renderResultsList(finalResults[resultsTab]?.[standingsType], resultsTab === 'after')}
+          </div>
+        )}
+
+        {/* --- Инфо о трассе --- */}
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-bold text-white uppercase tracking-wider border-b border-white/10 pb-2">
             {t.trackInfo || 'Информация о трассе'}
           </h3>
           
           <div className="flex flex-col gap-3 px-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <Speedometer size={16} className="text-zinc-400" />
-                <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">{t.lapRecord || 'Рекорд'}</span>
-              </div>
-              <span className="text-sm text-white font-bold">{lapRecord || '—'}</span>
-            </div>
+            <TrackInfoRow 
+              Icon={Speedometer} 
+              label={t.lapRecord || 'Рекорд'} 
+              value={lapRecord || '—'} 
+            />
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <Repeat size={16} className="text-zinc-400" />
-                <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">{t.laps || 'Круги'}</span>
-              </div>
-              <span className="text-sm text-white font-bold">{lapsCount || '?'} <span className="text-xs text-zinc-500 font-medium">{t.lapsShort || 'круг.'}</span></span>
-            </div>
+            <TrackInfoRow 
+              Icon={Repeat} 
+              label={lapsCount ? (t.laps || 'Круги') : (t.trackLength || 'Длина')} 
+              value={lapsCount ? lapsCount : lengthKm ? lengthKm : '?'} 
+              unit={lapsCount ? (t.lapsShort || 'круг.') : lengthKm ? 'км' : ''} 
+            />
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <Turns size={16} className="text-zinc-400" />
-                <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">{t.turns || 'Повороты'}</span>
-              </div>
-              <span className="text-sm text-white font-bold">{turnsCount || '?'} <span className="text-xs text-zinc-500 font-medium">{t.turnsShort || 'пов.'}</span></span>
-            </div>
+            <TrackInfoRow 
+              Icon={Turns} 
+              label={t.turns || 'Повороты'} 
+              value={turnsCount || '?'} 
+              unit={t.turnsShort || 'пов.'} 
+            />
             
             {/* Погода */}
             {weather && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  {getWeatherIcon(weather.code)}
-                  <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">
-                     {lang === 'ru' ? 'Прогноз' : 'Weather'}
-                  </span>
-                </div>
-                <span className="text-sm text-white font-bold">
-                  {weather.maxTemp}°C <span className="text-xs text-zinc-500 font-medium">/ {weather.minTemp}°C</span>
-                </span>
-              </div>
+              <TrackInfoRow 
+                iconElement={getWeatherIcon(weather.code)}
+                label={lang === 'ru' ? 'Прогноз' : 'Weather'} 
+                value={`${weather.maxTemp}°C`} 
+                unit={`/ ${weather.minTemp}°C`} 
+              />
             )}
-
           </div>
         </div>
 
