@@ -6,7 +6,7 @@ import { RaceModal } from './components/RaceModal';
 import { SeasonModal } from './components/SeasonModal';
 import { getRaces, getSeries } from './services/queries';
 import { useRaceStandings } from './hooks/useRaceStandings';
-import { translations } from './constants/translations';
+import translations from './constants/translations';
 
 export default function App() {
   // Базовые состояния данных
