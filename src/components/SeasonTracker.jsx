@@ -136,41 +136,43 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', n
   }
 
   return (
-    <div className="w-full bg-surface-card border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col gap-3 shadow-xl">
+    <div className="w-full bg-surface-card border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col gap-3.5 shadow-xl">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase ${sCfg.badgeClass}`}>
+        <div className="flex items-center gap-3 min-w-0">
+          <span className={`px-2.5 py-1 rounded-md text-xs font-black uppercase shrink-0 ${sCfg.badgeClass}`}>
             {sCfg.label[lang] || activeSeries}
           </span>
-          <span className="text-xs font-semibold text-zinc-400">
-            {lang === 'ru' ? 'Этап' : 'Round'} {completedCount} / {totalCount}
-          </span>
+          <h4 className="text-base sm:text-lg font-bold text-white tracking-tight truncate">
+            {nextSeriesRace ? nextSeriesRace.name : (seriesRaces[seriesRaces.length - 1]?.name || '')}
+          </h4>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="shrink-0 text-right">
           {isCompleted ? (
             <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
               {lang === 'ru' ? 'Чемпионат завершен' : 'Championship Completed'}
             </span>
           ) : (
-            <>
-              <span className="text-xs font-mono font-bold text-zinc-400">{progressPercent}%</span>
-              {nextSeriesRace && (
-                <div className="flex items-center gap-1.5 text-xs text-zinc-300 font-medium truncate max-w-[220px] sm:max-w-xs">
-                  <span className="text-zinc-500">{lang === 'ru' ? 'Далее:' : 'Next:'}</span>
-                  <span className="text-white font-bold truncate">{nextSeriesRace.name}</span>
-                </div>
-              )}
-            </>
+            <span className="text-xs sm:text-sm font-semibold text-zinc-300">
+              {lang === 'ru' ? 'Этап' : 'Round'} {completedCount} / {totalCount}
+            </span>
           )}
         </div>
       </div>
 
-      <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5 relative">
+      <div className="w-full bg-white/5 h-2.5 rounded-full overflow-hidden border border-white/5 relative flex items-center">
         <div 
           className={`h-full transition-all duration-500 ${sCfg.bg || 'bg-purple-600'}`} 
           style={{ width: `${progressPercent}%` }}
         />
+        {!isCompleted && progressPercent > 0 && progressPercent < 100 && (
+          <span 
+            className="absolute text-[9px] font-mono font-bold text-white px-1 leading-none select-none"
+            style={{ left: `calc(${progressPercent}% + 4px)` }}
+          >
+            {progressPercent}%
+          </span>
+        )}
       </div>
     </div>
   );
