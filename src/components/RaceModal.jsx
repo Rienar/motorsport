@@ -7,6 +7,7 @@ import { getSeasonResults } from '../services/queries';
 const resultsCache = new Map();
 const weatherCache = new Map();
 
+// --- Вручную отрисованные иконки (защита от крашей библиотеки) ---
 const Speedometer = ({ size, className }) => (
   <svg className={className} width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l4-4" />
@@ -35,6 +36,7 @@ const Apple = ({ size, className }) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M10 2c1 .5 2 2 2 5" />
   </svg>
 );
+// ----------------------------------------------------------------
 
 const getWeatherIcon = (code) => {
   if ([0, 1].includes(code)) return <Sun size={16} className="text-yellow-400" />;
@@ -68,6 +70,7 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
   const circuit = race ? (Array.isArray(race.circuits) ? race.circuits[0] : (race.circuits || {})) : {};
   const rDate = race?.parsedDate instanceof Date && !isNaN(race.parsedDate) ? race.parsedDate : new Date(race?.date);
 
+  // Эффект погоды
   useEffect(() => {
     if (!race?.id) return;
     
@@ -119,8 +122,9 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
     };
     fetchWeather();
     return () => { isMounted = false; };
-  }, [race?.id]);
+  }, [race?.id, circuit.lat, circuit.lng, circuit.name, circuit.country, race?.lat, race?.lng, race?.name, rDate]);
 
+  // Эффект результатов
   useEffect(() => {
     if (!race?.id) return;
     
@@ -201,7 +205,7 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
   const lengthKm = circuit.length_km || null;
   const turnsCount = circuit.turns || null;
   
-  // ИСПРАВЛЕНИЕ ДАННЫХ: В БД колонка называется wiki_url, а не wikipedia_url
+  // Правильная ссылка
   const wikiUrl = race.wiki_url || circuit.wiki_url || null;
 
   const showResults = raceResults && raceResults.stage && (raceResults.stage.drivers?.length > 0 || raceResults.stage.teams?.length > 0);
@@ -303,7 +307,6 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
           </div>
         </div>
 
-        {/* ИСПРАВЛЕНИЕ ВЕРСТКИ: Жесткий Grid и min-w-0 чтобы блоки не сужались */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4 bg-surface-field border border-white/10 rounded-2xl p-4 sm:p-5 shadow-inner">
           <div className="flex items-center gap-3.5 min-w-0">
             <div className="w-11 h-11 bg-indigo-600 text-white rounded-xl flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(79,70,229,0.6)]">
@@ -358,7 +361,6 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
 
         {showResults && (
           <div className="flex flex-col gap-2 mt-2">
-            {/* ИСПРАВЛЕНИЕ КНОПОК: Единая строка, равная высота (h-8), фиолетовый акцент без рамок */}
             <div className="flex items-center justify-between gap-1.5 w-full pb-1">
               <div className="flex flex-1 bg-white/5 p-1 rounded-xl gap-1">
                 <button 
@@ -402,11 +404,13 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
               <TrackInfoRow Icon={Speedometer} label={t.lapRecord || 'Рекорд'} value={lapRecord || '—'} />
               <TrackInfoRow Icon={Repeat} label={lapsCount ? (t.laps || 'Круги') : (t.trackLength || 'Длина')} value={lapsCount ? lapsCount : lengthKm ? lengthKm : '?'} unit={lapsCount ? (t.lapsShort || 'круг.') : lengthKm ? 'км' : ''} />
               <TrackInfoRow Icon={Turns} label={t.turns || 'Повороты'} value={turnsCount || '?'} unit={t.turnsShort || 'пов.'} />
+              
+              {/* Плашка с погодой */}
               {weather && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-1">
                   <div className="flex items-center gap-2.5">
                     {getWeatherIcon(weather.code)}
-                    <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">{t.weather || 'Прогноз'}</span>
+                    <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">{t.weather || 'Прогноз на гонку'}</span>
                   </div>
                   <span className="text-sm text-white font-bold">{weather.maxTemp}°C <span className="text-xs text-zinc-500 font-medium">/ {weather.minTemp}°C</span></span>
                 </div>
