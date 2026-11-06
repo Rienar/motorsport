@@ -47,7 +47,6 @@ export const useRaceStandings = (selectedRace, races = [], activeYear, isRaceLiv
     const raceDate = selectedRace?.parsedDate || (selectedRace?.date ? new Date(selectedRace.date) : null);
     const isLive = typeof isRaceLive === 'function' && selectedRace ? isRaceLive(selectedRace) : false;
 
-    // Запрашиваем данные только если выбрана гонка F1 (прошедшая или текущая)
     if (selectedRace && (raceDate < new Date() || isLive) && raceSeriesCode === 'f1') {
       setStandingsLoading(true);
 
