@@ -3,7 +3,7 @@ name: Update F1 Calendar CSV
 on:
   schedule:
     # Запуск каждый понедельник в 03:00 UTC
-    - cron: '20 6 * * *'
+    - cron: '24 6 * * *'
   workflow_dispatch: # Позволяет запускать пайплайн вручную кнопкой в интерфейсе GitHub
 
 # Даем workflow право делать коммит и пуш в репозиторий
