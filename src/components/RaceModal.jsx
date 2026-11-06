@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { getSeriesConfig } from '../constants/seriesConfig';
 import { translations } from '../constants/translations';
+import { Sun, CloudRain, CloudSun, CloudSnow, CloudFog, CloudLightning, Globe } from 'lucide-react';
 
 // Локальные SVG-иконки для дизайна
 const Speedometer = ({ size, className }) => (
@@ -79,8 +80,47 @@ const ExternalLinkIcon = ({ size, className }) => (
   </svg>
 );
 
+const getWeatherIcon = (code) => {
+  if ([0, 1].includes(code)) return <Sun size={16} className="text-yellow-400" />;
+  if ([2, 3].includes(code)) return <CloudSun size={16} className="text-zinc-300" />;
+  if ([45, 48].includes(code)) return <CloudFog size={16} className="text-zinc-400" />;
+  if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return <CloudRain size={16} className="text-blue-400" />;
+  if ([71, 73, 75, 85, 86].includes(code)) return <CloudSnow size={16} className="text-blue-200" />;
+  if ([95, 96, 99].includes(code)) return <CloudLightning size={16} className="text-yellow-500" />;
+  return <CloudSun size={16} className="text-zinc-400" />;
+};
+
 export default function RaceModal({ race, onClose, standingsData, lang = 'ru' }) {
   const [activeTab, setActiveTab] = useState('race');
+  const [weather, setWeather] = useState(null);
+
+  React.useEffect(() => {
+    if (!race) return;
+    const rDate = race.parsedDate instanceof Date && !isNaN(race.parsedDate) ? race.parsedDate : new Date(race.date);
+    const now = new Date();
+    const diffDays = (rDate.getTime() - now.getTime()) / (1000 * 3600 * 24);
+    
+    // Загружаем погоду только если гонка предстоит в ближайшие 7-10 дней
+    if (diffDays >= -1 && diffDays <= 10 && race.circuits?.lat && race.circuits?.lng) {
+      const { lat, lng } = race.circuits;
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto`)
+        .then(res => res.json())
+        .then(data => {
+          if (!data.daily) return;
+          const dateStr = rDate.toISOString().split('T')[0];
+          const idx = data.daily.time?.indexOf(dateStr) !== -1 ? data.daily.time.indexOf(dateStr) : 0;
+          if (idx !== undefined) {
+            setWeather({
+              maxTemp: Math.round(data.daily.temperature_2m_max[idx]),
+              minTemp: Math.round(data.daily.temperature_2m_min[idx]),
+              code: data.daily.weathercode[idx]
+            });
+          }
+        })
+        .catch(err => console.error("Ошибка загрузки погоды:", err));
+    }
+  }, [race]);
+
   if (!race) return null;
 
   const t = translations?.[lang] || translations?.ru || {};
@@ -89,7 +129,7 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
   
   const rDate = race.parsedDate instanceof Date && !isNaN(race.parsedDate) ? race.parsedDate : new Date(race.date);
   const formattedDate = rDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', {
-    day: 'numeric', month: 'short', year: 'numeric'
+    day: 'numeric', month: 'long'
   });
   const moscowTime = rDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' });
   const localTime = race.local_time || rDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' });
@@ -171,7 +211,7 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-surface-field border border-white/10 rounded-2xl p-5 shadow-inner">
           <div className="flex items-start gap-4">
-            <div className="p-2.5 bg-indigo-500 text-white rounded-xl shrink-0 shadow-[0_0_12px_rgba(99,102,241,0.5)]">
+            <div className="p-2.5 bg-indigo-600 text-white rounded-xl shrink-0 shadow-[0_0_15px_rgba(79,70,229,0.6)]">
               <CalendarIcon size={22} className="text-white" />
             </div>
             <div className="flex flex-col">
@@ -181,18 +221,20 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
           </div>
           
           <div className="flex items-start gap-4">
-            <div className="p-2.5 bg-amber-500 text-white rounded-xl shrink-0 shadow-[0_0_12px_rgba(245,158,11,0.5)]">
+            <div className="p-2.5 bg-amber-600 text-white rounded-xl shrink-0 shadow-[0_0_15px_rgba(217,119,6,0.6)]">
               <ClockIcon size={22} className="text-white" />
             </div>
             <div className="flex flex-col w-full">
               <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mb-1">{lang === 'ru' ? 'Время старта' : 'Start Time'}</span>
-              <div className="flex items-center w-full">
-                <span className="text-zinc-500 w-16 shrink-0 font-semibold text-xs">{lang === 'ru' ? 'Местное:' : 'Local:'}</span>
-                <span className="text-white font-bold text-sm sm:text-base">{localTime}</span>
-              </div>
-              <div className="flex items-center w-full mt-0.5">
-                <span className="text-zinc-500 w-16 shrink-0 font-semibold text-xs">{lang === 'ru' ? 'МСК:' : 'MSK:'}</span>
-                <span className="text-white font-bold text-sm sm:text-base">{moscowTime}</span>
+              <div className="flex items-center gap-4 mt-0.5">
+                <div className="flex items-center gap-1.5" title={lang === 'ru' ? 'Местное время' : 'Local time'}>
+                  <MapPinIcon size={14} className="text-zinc-500" />
+                  <span className="text-white font-bold text-sm sm:text-base">{localTime}</span>
+                </div>
+                <div className="flex items-center gap-1.5" title={lang === 'ru' ? 'Московское время' : 'Moscow time'}>
+                  <Globe size={14} className="text-zinc-500" />
+                  <span className="text-white font-bold text-sm sm:text-base">{moscowTime}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -204,33 +246,34 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
             className="flex items-center justify-center gap-1.5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-white transition-all shadow-sm active:scale-95"
           >
             <CalendarPlusIcon size={15} className="text-indigo-400 shrink-0" />
-            <span className="truncate">{t.addToGoogle || 'Google'}</span>
+            <span className="truncate">Google</span>
           </button>
           <button 
             onClick={handleAppleCalendar}
             className="flex items-center justify-center gap-1.5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-white transition-all shadow-sm active:scale-95"
           >
             <Apple size={15} className="text-zinc-400 shrink-0" />
-            <span className="truncate">{t.downloadApple || 'Apple'}</span>
+            <span className="truncate">Apple</span>
           </button>
           {wikiUrl ? (
             <a 
               href={wikiUrl} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-white transition-all shadow-sm active:scale-95"
+              className="flex items-center justify-center gap-1.5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-white transition-all shadow-sm active:scale-95 cursor-pointer"
             >
               <ExternalLinkIcon size={15} className="text-zinc-400 shrink-0" />
-              <span className="truncate">{t.wiki || 'Вики'}</span>
+              <span className="truncate">Вики</span>
             </a>
           ) : (
             <div className="flex items-center justify-center gap-1.5 py-2.5 bg-white/[0.02] border border-white/5 rounded-xl text-[11px] sm:text-xs font-semibold text-zinc-600 cursor-not-allowed">
               <ExternalLinkIcon size={15} className="text-zinc-600 shrink-0" />
-              <span className="truncate">{t.wiki || 'Вики'}</span>
+              <span className="truncate">Вики</span>
             </div>
           )}
         </div>
 
+        {/* Инфо о трассе */}
         {race.circuits && (
           <div className="flex flex-col gap-3">
             <h3 className="text-sm font-bold text-white uppercase tracking-wider border-b border-white/10 pb-2">
@@ -261,6 +304,22 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
                 </div>
                 <span className="text-sm text-white font-bold">{turnsCount || '?'} <span className="text-xs text-zinc-500 font-medium">{t.turnsShort || 'пов.'}</span></span>
               </div>
+              
+              {/* Погода перенесена в блок трассы */}
+              {weather && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    {getWeatherIcon(weather.code)}
+                    <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">
+                       {lang === 'ru' ? 'Прогноз' : 'Weather'}
+                    </span>
+                  </div>
+                  <span className="text-sm text-white font-bold">
+                    {weather.maxTemp}°C <span className="text-xs text-zinc-500 font-medium">/ {weather.minTemp}°C</span>
+                  </span>
+                </div>
+              )}
+
             </div>
           </div>
         )}
