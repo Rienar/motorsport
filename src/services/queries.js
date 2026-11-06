@@ -14,8 +14,18 @@ const fetchSupabase = async (endpoint) => {
 export const useRaces = () => {
   return useQuery({
     queryKey: ['races'],
-    queryFn: () => fetchSupabase('races?select=*&order=date.asc'),
+    // Подтягиваем все поля race + связанную серию по foreign key
+    queryFn: () => fetchSupabase('races?select=*,series:series_id(id,code,name,short_name)&order=date.asc'),
     staleTime: 10 * 60 * 1000,
+  });
+};
+
+// Хук для загрузки списка серий из новой таблицы series
+export const useSeriesList = () => {
+  return useQuery({
+    queryKey: ['series_list'],
+    queryFn: () => fetchSupabase('series?select=*&order=id.asc'),
+    staleTime: 60 * 60 * 1000,
   });
 };
 
