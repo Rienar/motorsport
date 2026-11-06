@@ -37,8 +37,16 @@ export default function App() {
   // Текущий словарь локализации
   const t = translations?.[lang] || translations?.ru || {};
 
-  // Турнирная таблица для модалки итогов сезона
-  const { data: standings } = useRaceStandings(selectedYear);
+  // Функция проверки: идет ли гонка сегодня
+  const isRaceLive = (race) => {
+    if (!race || !race.date) return false;
+    const today = new Date().toDateString();
+    const raceDay = new Date(race.date).toDateString();
+    return today === raceDay;
+  };
+
+  // Хук турнирной таблицы (теперь получает все нужные аргументы)
+  const standingsData = useRaceStandings(selectedRace, races, selectedYear, isRaceLive);
 
   const fetchData = async () => {
     try {
@@ -48,7 +56,14 @@ export default function App() {
         getRaces(),
         getSeries(),
       ]);
-      setRaces(racesData);
+      
+      // Добавляем parsedDate для совместимости с хуком useRaceStandings
+      const formattedRaces = racesData.map(r => ({
+        ...r,
+        parsedDate: new Date(r.date)
+      }));
+
+      setRaces(formattedRaces);
       setSeriesList(seriesData);
     } catch (err) {
       console.error('Ошибка при загрузке данных:', err);
@@ -72,18 +87,17 @@ export default function App() {
     const matchesSeries = selectedSeries === 'ALL' || code === filterVal || shortName === selectedSeries.toUpperCase();
 
     // 2. Фильтр по году
-    const raceYear = race.season || new Date(race.date).getFullYear();
+    const raceYear = race.season || race.parsedDate.getFullYear();
     const matchesYear = raceYear === selectedYear;
 
     // 3. Фильтр по месяцу
-    const raceMonth = new Date(race.date).getMonth() + 1; // getMonth() возвращает 0-11
+    const raceMonth = race.parsedDate.getMonth() + 1; // getMonth() возвращает 0-11
     const matchesMonth = selectedMonth === 'all' || raceMonth === parseInt(selectedMonth, 10);
 
     // 4. Фильтр прошедших гонок
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const raceDate = new Date(race.date);
-    const isPast = raceDate < today;
+    const isPast = race.parsedDate < today;
     const matchesPast = showPast ? true : !isPast;
 
     return matchesSeries && matchesYear && matchesMonth && matchesPast;
@@ -144,6 +158,9 @@ export default function App() {
               races={filteredRaces}
               viewMode={viewMode}
               onSelectRace={setSelectedRace}
+              isRaceLive={isRaceLive} 
+              lang={lang}
+              t={t}
             />
           </>
         )}
@@ -153,6 +170,7 @@ export default function App() {
         <RaceModal
           race={selectedRace}
           onClose={() => setSelectedRace(null)}
+          standingsData={standingsData}
         />
       )}
 
@@ -161,7 +179,9 @@ export default function App() {
           isOpen={isSeasonModalOpen}
           onClose={() => setIsSeasonModalOpen(false)}
           year={selectedYear}
-          standings={standings}
+          standingsData={standingsData}
+          lang={lang}
+          t={t}
         />
       )}
     </div>
