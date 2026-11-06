@@ -136,15 +136,22 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', n
   }
 
   return (
-    <div className="w-full bg-surface-card border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col gap-3.5 shadow-xl">
+    <div className="w-full bg-surface-card border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col gap-3 shadow-xl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <span className={`px-2.5 py-1 rounded-md text-xs font-black uppercase shrink-0 ${sCfg.badgeClass}`}>
             {sCfg.label[lang] || activeSeries}
           </span>
-          <h4 className="text-base sm:text-lg font-bold text-white tracking-tight truncate">
-            {nextSeriesRace ? nextSeriesRace.name : (seriesRaces[seriesRaces.length - 1]?.name || '')}
-          </h4>
+          {!isCompleted && nextSeriesRace && (
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-xs text-zinc-500 font-medium">
+                {lang === 'ru' ? 'Далее:' : 'Next:'}
+              </span>
+              <h4 className="text-base sm:text-lg font-bold text-white tracking-tight truncate">
+                {nextSeriesRace.name}
+              </h4>
+            </div>
+          )}
         </div>
 
         <div className="shrink-0 text-right">
@@ -160,19 +167,25 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', n
         </div>
       </div>
 
-      <div className="w-full bg-white/5 h-2.5 rounded-full overflow-hidden border border-white/5 relative flex items-center">
-        <div 
-          className={`h-full transition-all duration-500 ${sCfg.bg || 'bg-purple-600'}`} 
-          style={{ width: `${progressPercent}%` }}
-        />
+      <div className="relative pt-5 pb-1">
         {!isCompleted && progressPercent > 0 && progressPercent < 100 && (
-          <span 
-            className="absolute text-[9px] font-mono font-bold text-white px-1 leading-none select-none"
-            style={{ left: `calc(${progressPercent}% + 4px)` }}
+          <div 
+            className="absolute top-0 flex flex-col items-center transform -translate-x-1/2 pointer-events-none transition-all duration-500"
+            style={{ left: `${progressPercent}%` }}
           >
-            {progressPercent}%
-          </span>
+            <span className="text-[10px] font-mono font-bold text-white mb-1 drop-shadow-[0_0_6px_rgba(255,255,255,0.6)]">
+              {progressPercent}%
+            </span>
+            <div className="w-0.5 h-3 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.9),0_0_20px_rgba(59,130,246,0.6)]" />
+          </div>
         )}
+
+        <div className="w-full bg-white/5 h-2.5 rounded-full overflow-hidden border border-white/5">
+          <div 
+            className={`h-full transition-all duration-500 ${sCfg.bg || 'bg-purple-600'}`} 
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
       </div>
     </div>
   );
