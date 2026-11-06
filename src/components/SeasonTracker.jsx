@@ -95,7 +95,8 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', n
 
   const completedCount = seriesRaces.filter(r => (r.parsedDate || new Date(r.date)).getTime() < Date.now()).length;
   const totalCount = seriesRaces.length;
-  const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const isCompleted = totalCount > 0 && completedCount >= totalCount;
 
   const nextSeriesRace = seriesRaces.find(r => (r.parsedDate || new Date(r.date)).getTime() + 1000 * 60 * 180 > Date.now());
 
@@ -145,15 +146,27 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', n
             {lang === 'ru' ? 'Этап' : 'Round'} {completedCount} / {totalCount}
           </span>
         </div>
-        {nextSeriesRace && (
-          <div className="flex items-center gap-1.5 text-xs text-zinc-300 font-medium truncate max-w-[220px] sm:max-w-xs">
-            <span className="text-zinc-500">{lang === 'ru' ? 'Далее:' : 'Next:'}</span>
-            <span className="text-white font-bold truncate">{nextSeriesRace.name}</span>
-          </div>
-        )}
+
+        <div className="flex items-center gap-3">
+          {isCompleted ? (
+            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
+              {lang === 'ru' ? 'Чемпионат завершен' : 'Championship Completed'}
+            </span>
+          ) : (
+            <>
+              <span className="text-xs font-mono font-bold text-zinc-400">{progressPercent}%</span>
+              {nextSeriesRace && (
+                <div className="flex items-center gap-1.5 text-xs text-zinc-300 font-medium truncate max-w-[220px] sm:max-w-xs">
+                  <span className="text-zinc-500">{lang === 'ru' ? 'Далее:' : 'Next:'}</span>
+                  <span className="text-white font-bold truncate">{nextSeriesRace.name}</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
-      <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5">
+      <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5 relative">
         <div 
           className={`h-full transition-all duration-500 ${sCfg.bg || 'bg-purple-600'}`} 
           style={{ width: `${progressPercent}%` }}
