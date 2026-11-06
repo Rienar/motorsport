@@ -1,0 +1,39 @@
+name: Update F1 Calendar CSV
+
+on:
+  schedule:
+    # Запуск каждый понедельник в 03:00 UTC
+    - cron: '0 3 * * 1'
+  workflow_dispatch: # Позволяет запускать пайплайн вручную кнопкой в интерфейсе GitHub
+
+# Даем workflow право делать коммит и пуш в репозиторий
+permissions:
+  contents: write
+
+jobs:
+  update-calendar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install requests
+
+      - name: Run calendar updater
+        run: |
+          python scripts/update_calendar.py
+
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: auto-update F1 calendar CSV [skip ci]"
+          file_pattern: "data/f1_calendar.csv"
