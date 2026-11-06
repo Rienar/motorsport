@@ -3,14 +3,10 @@ import { Header } from './components/Header';
 import { CalendarView } from './components/CalendarView';
 import { SeasonTracker } from './components/SeasonTracker';
 import { RaceModal } from './components/RaceModal';
-import { MonthModal } from './components/MonthModal';
 import { SeasonModal } from './components/SeasonModal';
 import { getRaces, getSeries } from './services/queries';
 import { useRaceStandings } from './hooks/useRaceStandings';
-
-// Если у вас есть файл переводов, импортируйте его. 
-// В качестве fallback можно использовать пустой объект или подставить импорт:
-// import { translations } from './constants/translations';
+import { translations } from './constants/translations';
 
 export default function App() {
   // Базовые состояния данных
@@ -19,21 +15,20 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Состояния фильтров и UI (синхронизировано с Header.jsx)
+  // Состояния фильтров и UI
+  const [lang, setLang] = useState('ru');
   const [selectedSeries, setSelectedSeries] = useState('ALL');
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); // Текущий год по умолчанию
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState('all');
   const [viewMode, setViewMode] = useState('list');
-  const [showPast, setShowPast] = useState(true); // Показывать ли прошедшие гонки
-  const [lang, setLang] = useState('ru'); 
+  const [showPast, setShowPast] = useState(true);
 
   // Состояния модальных окон
   const [selectedRace, setSelectedRace] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState('all');
   const [isSeasonModalOpen, setIsSeasonModalOpen] = useState(false);
 
-  // Получение словаря (заглушка на случай отсутствия импорта)
-  // const t = translations?.[lang] || { appTitle: 'Motorsport', months: [] }; 
-  const t = { appTitle: 'Motorsport', months: [], standingsBtn: 'Таблица', pastRaces: 'Прошедшие' };
+  // Текущий словарь локализации
+  const t = translations?.[lang] || translations?.ru || {};
 
   // Турнирная таблица для модалки итогов сезона
   const { data: standings } = useRaceStandings(selectedYear);
@@ -59,9 +54,9 @@ export default function App() {
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Перезапрашиваем данные только при маунте, фильтрация идет на клиенте
+  }, []);
 
-  // Многоуровневая фильтрация гонок (Серия + Год + Прошедшие)
+  // Многоуровневая фильтрация гонок
   const filteredRaces = races.filter((race) => {
     // 1. Фильтр по серии
     const code = race.series?.code?.toLowerCase();
@@ -69,24 +64,26 @@ export default function App() {
     const filterVal = selectedSeries.toLowerCase();
     const matchesSeries = selectedSeries === 'ALL' || code === filterVal || shortName === selectedSeries.toUpperCase();
 
-    // 2. Фильтр по году (используем поле season из БД или вычисляем из даты)
+    // 2. Фильтр по году
     const raceYear = race.season || new Date(race.date).getFullYear();
     const matchesYear = raceYear === selectedYear;
 
-    // 3. Фильтр прошедших гонок
-    // Устанавливаем начало сегодняшнего дня для корректного сравнения
+    // 3. Фильтр по месяцу
+    const raceMonth = new Date(race.date).getMonth() + 1; // getMonth() возвращает 0-11
+    const matchesMonth = selectedMonth === 'all' || raceMonth === parseInt(selectedMonth, 10);
+
+    // 4. Фильтр прошедших гонок
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const raceDate = new Date(race.date);
     const isPast = raceDate < today;
     const matchesPast = showPast ? true : !isPast;
 
-    return matchesSeries && matchesYear && matchesPast;
+    return matchesSeries && matchesYear && matchesMonth && matchesPast;
   });
 
   return (
     <div className="min-h-screen bg-[#0d0f12] text-zinc-100 flex flex-col font-sans selection:bg-red-500/30">
-      {/* Пропсы строго соответствуют сигнатуре Header.jsx */}
       <Header
         t={t}
         lang={lang}
@@ -111,22 +108,22 @@ export default function App() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-64 text-zinc-500 space-y-3">
             <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm">Загрузка календаря...</p>
+            <p className="text-sm">{lang === 'ru' ? 'Загрузка календаря...' : 'Loading calendar...'}</p>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center h-64 text-red-400 space-y-2">
-            <p className="font-semibold">Не удалось загрузить данные</p>
+            <p className="font-semibold">{lang === 'ru' ? 'Не удалось загрузить данные' : 'Failed to load data'}</p>
             <p className="text-xs text-zinc-500">{error.message}</p>
             <button
               onClick={fetchData}
               className="mt-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-200 rounded-lg transition-colors"
             >
-              Попробовать снова
+              {lang === 'ru' ? 'Попробовать снова' : 'Try again'}
             </button>
           </div>
         ) : filteredRaces.length === 0 ? (
           <div className="flex items-center justify-center h-64 text-zinc-500 text-sm">
-            Нет гонок по выбранным критериям.
+            {lang === 'ru' ? 'Нет гонок по выбранным критериям.' : 'No races match the selected criteria.'}
           </div>
         ) : (
           <>
@@ -150,16 +147,6 @@ export default function App() {
         <RaceModal
           race={selectedRace}
           onClose={() => setSelectedRace(null)}
-        />
-      )}
-
-      {/* Модальное окно месяца (открывается из SeasonTracker) */}
-      {selectedMonth && selectedMonth !== 'all' && (
-        <MonthModal
-          month={selectedMonth}
-          races={filteredRaces}
-          onClose={() => setSelectedMonth('all')}
-          onSelectRace={setSelectedRace}
         />
       )}
 
