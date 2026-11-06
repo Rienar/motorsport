@@ -1,204 +1,261 @@
-import React, { useState } from 'react';
-import { Trophy, RefreshCw, LayoutList, Calendar as CalendarIcon } from 'lucide-react';
-import { getSeriesConfig, YEARS } from '../constants/seriesConfig';
-import { MonthModal } from './MonthModal';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Header } from './components/Header';
+import { CalendarView } from './components/CalendarView';
+import { SeasonTracker } from './components/SeasonTracker';
+import { SeasonModal } from './components/SeasonModal';
+import RaceModal from './components/RaceModal';
 
-export const Header = ({
-  t = {},
-  lang = 'ru',
-  onToggleLang,
-  seriesList = [],
-  activeSeries = 'ALL',
-  setActiveSeries,
-  activeYear,
-  setActiveYear,
-  activeMonth,
-  setActiveMonth,
-  showPast,
-  setShowPast,
-  viewMode,
-  setViewMode,
-  onRefresh,
-  loading,
-  onOpenSeason
-}) => {
-  const [isMonthModalOpen, setIsMonthModalOpen] = useState(false);
+import { getRaces, getSeries } from './services/queries';
+import { useRaceStandings } from './hooks/useRaceStandings';
+import { translations } from './constants/translations';
 
-  // Список серий для фильтров, исключая IMSA
-  const availableSeries = [
-    { code: 'ALL', name: lang === 'ru' ? 'Все' : 'All' },
-    { code: 'f1', name: 'F1' },
-    { code: 'wec', name: 'WEC' },
-    { code: 'dtm', name: 'DTM' },
-    { code: 'super_gt', name: 'GT' }
-  ];
+export default function App() {
+  const [races, setRaces] = useState([]);
+  const [seriesList, setSeriesList] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const monthLabel = activeMonth === 'all'
-    ? (t.monthAll || (lang === 'ru' ? 'Все' : 'All'))
-    : (t.months?.[parseInt(activeMonth, 10) - 1] || activeMonth);
+  const [lang, setLang] = useState('ru');
+  const [selectedSeries, setSelectedSeries] = useState('ALL');
+  const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedMonth, setSelectedMonth] = useState('all');
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [viewMode, setViewMode] = useState('calendar');
+  const [showPast, setShowPast] = useState(true);
+
+  const [selectedRace, setSelectedRace] = useState(null);
+  const [isSeasonModalOpen, setIsSeasonModalOpen] = useState(false);
+
+  const t = translations?.[lang] || translations?.ru || {};
+
+  const isRaceLive = (race) => {
+    if (!race || !race.date) return false;
+    const today = new Date().toDateString();
+    const raceDay = (race.parsedDate || new Date(race.date)).toDateString();
+    return today === raceDay;
+  };
+
+  const standingsData = useRaceStandings(selectedRace, races, selectedYear, isRaceLive);
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const [racesData, seriesData] = await Promise.all([
+        getRaces(),
+        getSeries(),
+      ]);
+
+      const formattedRaces = (racesData || []).map(r => ({
+        ...r,
+        parsedDate: r.date ? new Date(r.date) : new Date()
+      }));
+
+      // Исключаем IMSA
+      const cleanRaces = formattedRaces.filter(r => {
+        const code = (typeof r.series === 'object' ? r.series?.code : r.series)?.toLowerCase();
+        return code !== 'imsa';
+      });
+
+      const cleanSeries = (seriesData || []).filter(s => {
+        const code = (s.code || s.short_name || '').toLowerCase();
+        return code !== 'imsa';
+      });
+
+      setRaces(cleanRaces);
+      setSeriesList(cleanSeries);
+    } catch (err) {
+      console.error('Ошибка при загрузке данных:', err);
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Фильтрация гонок
+  const filteredRaces = useMemo(() => {
+    return races.filter((race) => {
+      const seriesCode = (typeof race.series === 'object' ? race.series?.code || race.series?.short_name : race.series)?.toLowerCase() || '';
+      const filterVal = selectedSeries.toLowerCase();
+      const matchesSeries = selectedSeries === 'ALL' || seriesCode === filterVal;
+
+      const raceDate = race.parsedDate || new Date(race.date);
+      const raceYear = Number(race.season) || raceDate.getFullYear();
+      const matchesYear = raceYear === Number(selectedYear);
+
+      const raceMonth = raceDate.getMonth() + 1;
+      const matchesMonth = selectedMonth === 'all' || raceMonth === parseInt(selectedMonth, 10);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const isPast = raceDate < today;
+      const matchesPast = showPast ? true : !isPast;
+
+      return matchesSeries && matchesYear && matchesMonth && matchesPast;
+    });
+  }, [races, selectedSeries, selectedYear, selectedMonth, showPast]);
+
+  // Расчет календарной сетки для CalendarView
+  const calendarDays = useMemo(() => {
+    const year = Number(selectedYear);
+    const month = calMonth;
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    
+    // Понедельник = 0
+    let startDayOfWeek = firstDay.getDay() - 1;
+    if (startDayOfWeek === -1) startDayOfWeek = 6;
+
+    const days = [];
+
+    // Предыдущий месяц
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+      const d = new Date(year, month - 1, prevMonthLastDay - i);
+      days.push({
+        date: d,
+        dayNumber: d.getDate(),
+        isCurrentMonth: false,
+        races: []
+      });
+    }
+
+    // Текущий месяц с привязкой гонок
+    for (let i = 1; i <= lastDay.getDate(); i++) {
+      const d = new Date(year, month, i);
+      const dayRaces = filteredRaces.filter(r => {
+        const rDate = r.parsedDate || new Date(r.date);
+        return rDate.getFullYear() === year && rDate.getMonth() === month && rDate.getDate() === i;
+      });
+
+      days.push({
+        date: d,
+        dayNumber: i,
+        isCurrentMonth: true,
+        races: dayRaces
+      });
+    }
+
+    // Хвост следующего месяца до полной сетки (кратной 7)
+    const remainingDays = 7 - (days.length % 7);
+    if (remainingDays < 7) {
+      for (let i = 1; i <= remainingDays; i++) {
+        const d = new Date(year, month + 1, i);
+        days.push({
+          date: d,
+          dayNumber: i,
+          isCurrentMonth: false,
+          races: []
+        });
+      }
+    }
+
+    return days;
+  }, [selectedYear, calMonth, filteredRaces]);
+
+  const availableMonths = useMemo(() => Array.from({ length: 12 }, (_, i) => i), []);
+
+  const handlePrevMonth = () => {
+    setCalMonth(prev => (prev === 0 ? 11 : prev - 1));
+  };
+
+  const handleNextMonth = () => {
+    setCalMonth(prev => (prev === 11 ? 0 : prev + 1));
+  };
 
   return (
-    <header className="border-b border-white/10 bg-[#0d0f12]/80 backdrop-blur-md sticky top-0 z-40 px-4 py-3">
-      <div className="max-w-7xl mx-auto flex flex-col gap-3">
-        {/* Верхняя строка: Логотип, Язык, Управление видом и Обновление */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500">
-              <Trophy size={20} />
-            </div>
-            <h1 className="text-lg font-black tracking-wider uppercase text-white">
-              {t.appTitle || 'Motorsport Tracker'}
-            </h1>
-            
-            {/* Переключатель языка */}
-            <div className="flex bg-zinc-900 border border-white/10 rounded-lg p-0.5 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => onToggleLang('ru')}
-                className={`px-2 py-0.5 rounded ${lang === 'ru' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-white'}`}
-              >
-                RU
-              </button>
-              <button
-                type="button"
-                onClick={() => onToggleLang('en')}
-                className={`px-2 py-0.5 rounded ${lang === 'en' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-white'}`}
-              >
-                EN
-              </button>
-            </div>
+    <div className="min-h-screen bg-[#090a0f] text-zinc-100 flex flex-col font-sans selection:bg-red-500/30">
+      <Header
+        t={t}
+        lang={lang}
+        onToggleLang={setLang}
+        seriesList={seriesList}
+        activeSeries={selectedSeries}
+        setActiveSeries={setSelectedSeries}
+        activeYear={selectedYear}
+        setActiveYear={setSelectedYear}
+        activeMonth={selectedMonth}
+        setActiveMonth={setSelectedMonth}
+        showPast={showPast}
+        setShowPast={setShowPast}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        onRefresh={fetchData}
+        loading={isLoading}
+        onOpenSeason={() => setIsSeasonModalOpen(true)}
+      />
+
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 space-y-6">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center h-64 text-zinc-500 space-y-3">
+            <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm">{lang === 'ru' ? 'Загрузка календаря...' : 'Loading calendar...'}</p>
           </div>
-
-          <div className="flex items-center gap-2">
-            {/* Таблица сезона */}
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-64 text-red-400 space-y-2">
+            <p className="font-semibold">{lang === 'ru' ? 'Не удалось загрузить данные' : 'Failed to load data'}</p>
+            <p className="text-xs text-zinc-500">{error.message}</p>
             <button
-              type="button"
-              onClick={onOpenSeason}
-              className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-white/10 rounded-xl text-xs font-bold text-zinc-300 hover:text-white transition-all flex items-center gap-1.5"
+              onClick={fetchData}
+              className="mt-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-200 rounded-lg transition-colors"
             >
-              <Trophy size={14} className="text-amber-400" />
-              <span>{t.standingsBtn || (lang === 'ru' ? 'Зачёт' : 'Standings')}</span>
-            </button>
-
-            {/* Вид: Список / Календарь */}
-            <div className="flex bg-zinc-900 border border-white/10 rounded-xl p-0.5">
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-white'}`}
-                title={lang === 'ru' ? 'Список' : 'List'}
-              >
-                <LayoutList size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('calendar')}
-                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'calendar' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-white'}`}
-                title={lang === 'ru' ? 'Календарь' : 'Calendar'}
-              >
-                <CalendarIcon size={16} />
-              </button>
-            </div>
-
-            {/* Обновление */}
-            <button
-              type="button"
-              onClick={onRefresh}
-              disabled={loading}
-              className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-white/10 rounded-xl text-zinc-400 hover:text-white transition-all disabled:opacity-50"
-              title={lang === 'ru' ? 'Обновить данные' : 'Refresh'}
-            >
-              <RefreshCw size={16} className={loading ? 'animate-spin text-emerald-400' : ''} />
+              {lang === 'ru' ? 'Попробовать снова' : 'Try again'}
             </button>
           </div>
-        </div>
+        ) : (
+          <>
+            <SeasonTracker
+              races={races}
+              activeSeries={selectedSeries}
+              activeYear={selectedYear}
+              currentTime={new Date()}
+              lang={lang}
+              t={t}
+              onSelectRace={setSelectedRace}
+            />
 
-        {/* Нижняя строка: Кнопки серий, Года, Месяц и Тумблер прошедших */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-          {/* Серии */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {availableSeries.map((s) => {
-              const isActive = activeSeries.toLowerCase() === s.code.toLowerCase();
-              const cfg = getSeriesConfig(s.code);
-              return (
-                <button
-                  key={s.code}
-                  type="button"
-                  onClick={() => setActiveSeries(s.code)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition-all ${
-                    isActive
-                      ? s.code === 'super_gt'
-                        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
-                        : 'bg-white text-black shadow-lg shadow-white/10'
-                      : 'bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-white/5'
-                  }`}
-                >
-                  {s.name}
-                </button>
-              );
-            })}
-          </div>
+            <CalendarView
+              activeYear={selectedYear}
+              calMonth={calMonth}
+              setCalMonth={setCalMonth}
+              availableMonths={availableMonths}
+              handlePrevMonth={handlePrevMonth}
+              handleNextMonth={handleNextMonth}
+              calendarDays={calendarDays}
+              isRaceLive={isRaceLive}
+              openDayModal={(racesOnDay) => {
+                if (racesOnDay && racesOnDay[0]) setSelectedRace(racesOnDay[0]);
+              }}
+              lang={lang}
+              t={t}
+            />
+          </>
+        )}
+      </main>
 
-          <div className="flex items-center gap-3">
-            {/* Года (из константы YEARS: 2026, 2027) */}
-            <div className="flex bg-zinc-900 border border-white/10 rounded-xl p-0.5">
-              {YEARS.map((year) => (
-                <button
-                  key={year}
-                  type="button"
-                  onClick={() => setActiveYear(year)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
-                    activeYear === year
-                      ? 'bg-zinc-700 text-white'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  {year}
-                </button>
-              ))}
-            </div>
+      {selectedRace && (
+        <RaceModal
+          race={selectedRace}
+          onClose={() => setSelectedRace(null)}
+          standingsData={standingsData}
+        />
+      )}
 
-            {/* Выбор месяца */}
-            <button
-              type="button"
-              onClick={() => setIsMonthModalOpen(true)}
-              className="px-3 py-1 bg-zinc-900 hover:bg-zinc-800 border border-white/10 rounded-xl text-xs font-semibold text-zinc-300 flex items-center gap-1.5 transition-colors"
-            >
-              <CalendarIcon size={14} className="text-red-400" />
-              <span>{monthLabel}</span>
-            </button>
-
-            {/* Тумблер прошедших */}
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-zinc-400 select-none">
-              <span>{t.pastRaces || (lang === 'ru' ? 'Прошедшие' : 'Past')}</span>
-              <div className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showPast}
-                  onChange={(e) => setShowPast(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-8 h-4 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-600"></div>
-              </div>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {/* Селектор месяца */}
-      {isMonthModalOpen && (
-        <MonthModal
-          isOpen={isMonthModalOpen}
-          activeMonth={activeMonth}
-          onSelectMonth={(m) => {
-            setActiveMonth(m);
-            setIsMonthModalOpen(false);
-          }}
-          onClose={() => setIsMonthModalOpen(false)}
+      {isSeasonModalOpen && (
+        <SeasonModal
+          isOpen={isSeasonModalOpen}
+          onClose={() => setIsSeasonModalOpen(false)}
+          year={selectedYear}
+          standingsData={standingsData}
           lang={lang}
           t={t}
         />
       )}
-    </header>
+    </div>
   );
-};
+}
