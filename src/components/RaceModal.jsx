@@ -100,9 +100,12 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
     const now = new Date();
     const diffDays = (rDate.getTime() - now.getTime()) / (1000 * 3600 * 24);
     
+    // Получаем координаты (из circuits или напрямую из race)
+    const lat = race.circuits?.lat || race.lat;
+    const lng = race.circuits?.lng || race.lng;
+
     // Загружаем погоду только если гонка предстоит в ближайшие 7-10 дней
-    if (diffDays >= -1 && diffDays <= 10 && race.circuits?.lat && race.circuits?.lng) {
-      const { lat, lng } = race.circuits;
+    if (diffDays >= -1 && diffDays <= 10 && lat && lng) {
       fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto`)
         .then(res => res.json())
         .then(data => {
@@ -139,7 +142,8 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
   const lapRecord = race.circuits?.lap_record ? race.circuits.lap_record.replace(/\s*\(.*?\)/, '') : null;
   const lapsCount = race.circuits?.laps || null;
   const turnsCount = race.circuits?.turns || null;
-  const wikiUrl = race.circuits?.wikipedia_url || null;
+  // Ссылка берётся строго из БД (с самой гонки или с трассы)
+  const wikiUrl = race.wikipedia_url || race.circuits?.wikipedia_url || null;
 
   const handleGoogleCalendar = () => {
     const start = rDate.toISOString().replace(/-|:|\.\d\d\d/g, '');
@@ -273,56 +277,54 @@ export default function RaceModal({ race, onClose, standingsData, lang = 'ru' })
           )}
         </div>
 
-        {/* Инфо о трассе */}
-        {race.circuits && (
-          <div className="flex flex-col gap-3">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider border-b border-white/10 pb-2">
-              {t.trackInfo || 'Информация о трассе'}
-            </h3>
+        {/* Инфо о трассе (Отображается всегда, даже если данных в БД пока нет) */}
+        <div className="flex flex-col gap-3">
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider border-b border-white/10 pb-2">
+            {t.trackInfo || 'Информация о трассе'}
+          </h3>
+          
+          <div className="flex flex-col gap-3 px-1">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Speedometer size={16} className="text-zinc-400" />
+                <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">{t.lapRecord || 'Рекорд'}</span>
+              </div>
+              <span className="text-sm text-white font-bold">{lapRecord || '—'}</span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Repeat size={16} className="text-zinc-400" />
+                <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">{t.laps || 'Круги'}</span>
+              </div>
+              <span className="text-sm text-white font-bold">{lapsCount || '?'} <span className="text-xs text-zinc-500 font-medium">{t.lapsShort || 'круг.'}</span></span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Turns size={16} className="text-zinc-400" />
+                <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">{t.turns || 'Повороты'}</span>
+              </div>
+              <span className="text-sm text-white font-bold">{turnsCount || '?'} <span className="text-xs text-zinc-500 font-medium">{t.turnsShort || 'пов.'}</span></span>
+            </div>
             
-            <div className="flex flex-col gap-3 px-1">
+            {/* Погода */}
+            {weather && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <Speedometer size={16} className="text-zinc-400" />
-                  <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">{t.lapRecord || 'Рекорд'}</span>
-                </div>
-                <span className="text-sm text-white font-bold">{lapRecord || '—'}</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Repeat size={16} className="text-zinc-400" />
-                  <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">{t.laps || 'Круги'}</span>
-                </div>
-                <span className="text-sm text-white font-bold">{lapsCount || '?'} <span className="text-xs text-zinc-500 font-medium">{t.lapsShort || 'круг.'}</span></span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Turns size={16} className="text-zinc-400" />
-                  <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">{t.turns || 'Повороты'}</span>
-                </div>
-                <span className="text-sm text-white font-bold">{turnsCount || '?'} <span className="text-xs text-zinc-500 font-medium">{t.turnsShort || 'пов.'}</span></span>
-              </div>
-              
-              {/* Погода перенесена в блок трассы */}
-              {weather && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    {getWeatherIcon(weather.code)}
-                    <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">
-                       {lang === 'ru' ? 'Прогноз' : 'Weather'}
-                    </span>
-                  </div>
-                  <span className="text-sm text-white font-bold">
-                    {weather.maxTemp}°C <span className="text-xs text-zinc-500 font-medium">/ {weather.minTemp}°C</span>
+                  {getWeatherIcon(weather.code)}
+                  <span className="text-[10px] sm:text-xs text-zinc-400 uppercase font-bold tracking-wider mt-0.5">
+                     {lang === 'ru' ? 'Прогноз' : 'Weather'}
                   </span>
                 </div>
-              )}
+                <span className="text-sm text-white font-bold">
+                  {weather.maxTemp}°C <span className="text-xs text-zinc-500 font-medium">/ {weather.minTemp}°C</span>
+                </span>
+              </div>
+            )}
 
-            </div>
           </div>
-        )}
+        </div>
 
       </div>
     </div>
