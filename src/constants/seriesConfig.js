@@ -1,66 +1,44 @@
-export const YEARS = [2024, 2025, 2026];
-
-export const DEFAULT_CONFIG = {
-  id: 1,
-  name: 'Formula 1',
-  shortName: 'F1',
-  color: '#E10600',
-  badgeClass: 'bg-red-500/10 text-red-500 border-red-500/30',
-  borderClass: 'border-l-[#E10600]',
-  bgClass: 'bg-[#E10600]/10',
-  textClass: 'text-[#E10600]',
-};
-
 export const SERIES_CONFIG = {
-  f1: { ...DEFAULT_CONFIG },
+  all: {
+    label: { ru: 'Все', en: 'All' },
+    badgeClass: 'bg-zinc-800 text-zinc-300 border-zinc-700',
+    dotColor: 'bg-zinc-400'
+  },
+  f1: {
+    code: 'f1',
+    label: { ru: 'Формула-1', en: 'Formula 1' },
+    shortLabel: { ru: 'F1', en: 'F1' },
+    badgeClass: 'bg-red-500/20 text-red-400 border-red-500/30',
+    dotColor: 'bg-red-500'
+  },
   wec: {
-    id: 2,
-    name: 'World Endurance Championship',
-    shortName: 'WEC',
-    color: '#00A3E0',
-    badgeClass: 'bg-sky-500/10 text-sky-400 border-sky-500/30',
-    borderClass: 'border-l-[#00A3E0]',
-    bgClass: 'bg-[#00A3E0]/10',
-    textClass: 'text-[#00A3E0]',
+    code: 'wec',
+    label: { ru: 'WEC', en: 'WEC' },
+    shortLabel: { ru: 'WEC', en: 'WEC' },
+    badgeClass: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    dotColor: 'bg-blue-500'
   },
   dtm: {
-    id: 3,
-    name: 'Deutsche Tourenwagen Masters',
-    shortName: 'DTM',
-    color: '#FFCC00',
-    badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-    borderClass: 'border-l-[#FFCC00]',
-    bgClass: 'bg-[#FFCC00]/10',
-    textClass: 'text-[#FFCC00]',
+    code: 'dtm',
+    label: { ru: 'DTM', en: 'DTM' },
+    shortLabel: { ru: 'DTM', en: 'DTM' },
+    badgeClass: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    dotColor: 'bg-yellow-400'
   },
   super_gt: {
-    id: 4,
-    name: 'Super GT',
-    shortName: 'Super GT',
-    color: '#ED1B24',
-    badgeClass: 'bg-orange-500/10 text-orange-400 border-orange-500/30',
-    borderClass: 'border-l-[#ED1B24]',
-    bgClass: 'bg-[#ED1B24]/10',
-    textClass: 'text-[#ED1B24]',
+    code: 'super_gt',
+    label: { ru: 'Super GT', en: 'Super GT' },
+    shortLabel: { ru: 'GT', en: 'GT' },
+    // Зеленый цвет бейджа и индикатора:
+    badgeClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    dotColor: 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]'
   }
 };
 
-export const getSeriesConfig = (seriesInput) => {
-  if (!seriesInput) return DEFAULT_CONFIG;
+export const DEFAULT_CONFIG = SERIES_CONFIG.all;
 
-  if (typeof seriesInput === 'object') {
-    const code = seriesInput.code?.toLowerCase();
-    if (code && SERIES_CONFIG[code]) return SERIES_CONFIG[code];
-    const matchById = Object.values(SERIES_CONFIG).find(s => s.id === seriesInput.id);
-    if (matchById) return matchById;
-  }
-
-  if (typeof seriesInput === 'number') {
-    return Object.values(SERIES_CONFIG).find(s => s.id === seriesInput) || DEFAULT_CONFIG;
-  }
-
-  const key = String(seriesInput).toLowerCase();
-  return SERIES_CONFIG[key] || 
-         Object.values(SERIES_CONFIG).find(s => s.shortName.toLowerCase() === key) || 
-         DEFAULT_CONFIG;
+export const getSeriesConfig = (series) => {
+  if (!series) return DEFAULT_CONFIG;
+  const key = (typeof series === 'object' ? series.code || series.short_name : series).toLowerCase();
+  return SERIES_CONFIG[key] || DEFAULT_CONFIG;
 };
