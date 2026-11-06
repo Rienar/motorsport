@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  X, Calendar, MapPin, Globe, Apple,
+  X, Calendar, MapPin, Globe, Smartphone,
   Sun, Cloud, CloudRain, CloudLightning, Snowflake
 } from 'lucide-react';
 import { getSeasonResults } from '../services/queries';
@@ -36,7 +36,7 @@ export default function RaceModal({ race, isOpen, onClose, allRaces = [] }) {
   const [results, setResults] = useState({ drivers: [], teams: [] });
   const [weather, setWeather] = useState(null);
 
-  // БЕЗОПАСНАЯ дата гонки (гарантируем, что это всегда объект Date, а не строка)
+  // БЕЗОПАСНАЯ дата гонки (гарантируем, что это всегда объект Date)
   const rDate = useMemo(() => {
     try {
       if (!race || !race.date) return new Date();
@@ -146,7 +146,7 @@ export default function RaceModal({ race, isOpen, onClose, allRaces = [] }) {
   const displayList = isExpanded ? currentList : currentList.slice(0, 3);
   const isPastRace = rDate < new Date();
   
-  // Безопасный рендер времени (не ломаемся, если time == null)
+  // Безопасный рендер времени
   const timeStr = typeof race.time === 'string' ? race.time.slice(0, 5) : '—';
 
   return (
@@ -209,7 +209,7 @@ export default function RaceModal({ race, isOpen, onClose, allRaces = [] }) {
             Google
           </button>
           <button className="flex items-center justify-center gap-2 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-white/70 hover:text-white text-xs font-medium transition-colors">
-            <Apple className="w-3.5 h-3.5" />
+            <Smartphone className="w-3.5 h-3.5" />
             Apple
           </button>
           {circuitObj.wiki_url ? (
