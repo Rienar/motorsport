@@ -16,7 +16,6 @@ export const SeasonTracker = ({
   onSelectRace, 
   activeYear 
 }) => {
-  // Фильтруем гонки по выбранной серии И строго по выбранному году
   const seriesRaces = useMemo(() => {
     if (!races || !activeSeries || activeSeries.toLowerCase() === 'all') return [];
     const targetYearStr = activeYear ? String(activeYear) : null;
@@ -25,17 +24,13 @@ export const SeasonTracker = ({
     return races
       .filter(r => {
         if (!r) return false;
-
-        const seriesCode = getSeriesCode(r.series);
-        const matchSeries = seriesCode === filterSeries;
-
-        // Безопасная работа с датой (Date или ISO string)
+        const sCode = getSeriesCode(r.series);
+        const matchSeries = sCode === filterSeries;
         const dateObj = r.parsedDate instanceof Date && !isNaN(r.parsedDate)
           ? r.parsedDate
           : (r.date ? new Date(r.date) : null);
 
         if (!dateObj || isNaN(dateObj.getTime())) return false;
-
         const matchYear = targetYearStr ? dateObj.getFullYear().toString() === targetYearStr : true;
         return matchSeries && matchYear;
       })
@@ -53,13 +48,10 @@ export const SeasonTracker = ({
     const currentYearNum = nowTime.getFullYear();
     const selectedYearNum = parseInt(activeYear, 10) || currentYearNum;
     
-    // Проверяем отношения годов
     const isFutureYear = selectedYearNum > currentYearNum;
     const isPastYear = selectedYearNum < currentYearNum;
-
     const now = nowTime.getTime();
     
-    // Если год прошлый — все гонки пройдены. Если будущий — ни одна. Если текущий — считаем по времени.
     const passedRacesCount = isPastYear 
       ? seriesRaces.length 
       : (isFutureYear ? 0 : seriesRaces.filter(r => r.parsedDate.getTime() <= now).length);
@@ -116,7 +108,7 @@ export const SeasonTracker = ({
       case 'f1': return 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)] animate-pulse';
       case 'wec': return 'bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.8)] animate-pulse';
       case 'dtm': return 'bg-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.8)] animate-pulse';
-      case 'super_gt': return 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)] animate-pulse';
+      case 'super_gt': return 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)] animate-pulse';
       default: return 'bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)] animate-pulse';
     }
   };
