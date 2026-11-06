@@ -13,7 +13,7 @@ import RaceModal from './components/RaceModal';
 // Сервисы, хуки и константы
 import { getRaces, getSeries } from './services/queries';
 import { useRaceStandings } from './hooks/useRaceStandings';
-import { TRANSLATIONS as translations } from './constants/translations';
+import { translations } from './constants/translations';
 
 export default function App() {
   // Базовые состояния данных
