@@ -121,4 +121,71 @@ export default function RaceCard({ race, onClick, isLive = false, lang = 'ru', t
             {race.name}
           </h3>
           <div className="flex items-center gap-1.5 text-xs text-zinc-400 truncate mt-0.5">
-            <MapPin size={12} className="text-zinc-500 shrink-
+            <MapPin size={12} className="text-zinc-500 shrink-0" />
+            <span className="font-semibold text-zinc-300">{countryName ? `${countryName}, ` : ''}</span>
+            <span className="truncate text-zinc-400">{race.circuit || race.location || 'Unknown Circuit'}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Правая часть: Дата с акцентом, времена (Местное - серое, МСК - ярко-белое), таймер и ссылка */}
+      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between lg:justify-end gap-2.5 sm:gap-4 lg:gap-5 pt-2.5 lg:pt-0 border-t lg:border-t-0 border-white/[0.06] shrink-0">
+        
+        {/* Акцентная плашка даты в стиле приложения */}
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 font-mono text-xs font-bold tracking-tight shadow-sm">
+          <Calendar size={13} className="text-red-400 shrink-0" />
+          <span>{formattedDate}</span>
+        </div>
+
+        {/* Блок времени */}
+        <div className="flex items-center gap-2 font-mono text-xs">
+          <Clock size={13} className="text-zinc-600 shrink-0 hidden sm:inline" />
+          
+          {/* Местное время (серое) */}
+          <span className="text-zinc-500" title="Локальное время автодрома">
+            <span className="text-zinc-600">{lang === 'ru' ? 'Местное:' : 'Track:'}</span>{' '}
+            <span className="text-zinc-400 font-medium">{trackLocalTime}</span>
+          </span>
+
+          <span className="text-zinc-700">•</span>
+
+          {/* Время по Москве (ярко-белое) */}
+          <span className="text-zinc-400" title="Время по Москве (UTC+3)">
+            <span className="text-zinc-500">{lang === 'ru' ? 'МСК:' : 'MSK:'}</span>{' '}
+            <span className="text-white font-bold drop-shadow-sm">{moscowTime}</span>
+          </span>
+        </div>
+
+        {/* Обратный отсчёт или Прямой эфир */}
+        {countdown && (
+          <div className="flex items-center text-xs font-mono font-bold shrink-0">
+            {countdown.status === 'live' ? (
+              <span className="flex items-center gap-1 text-red-500 bg-red-500/10 px-2.5 py-1 rounded-xl border border-red-500/20 animate-pulse">
+                <Radio size={11} className="animate-spin" />
+                {countdown.text}
+              </span>
+            ) : (
+              <span className="text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/20">
+                {countdown.text}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Ссылка на Википедию */}
+        {wikiLink && (
+          <a
+            href={wikiLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            title={lang === 'ru' ? 'Статья в Wikipedia' : 'Wikipedia'}
+            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/5 transition-all shrink-0 ml-auto sm:ml-0"
+          >
+            <ExternalLink size={13} />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
