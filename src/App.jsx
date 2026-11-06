@@ -6,8 +6,9 @@ import { CalendarView } from './components/CalendarView';
 import { SeasonTracker } from './components/SeasonTracker';
 import { SeasonModal } from './components/SeasonModal';
 
-// Экспорт по умолчанию
+// Экспорты по умолчанию
 import RaceModal from './components/RaceModal';
+import RaceCard from './components/RaceCard';
 
 // Сервисы, хуки и константы
 import { getRaces, getSeries } from './services/queries';
@@ -23,11 +24,11 @@ export default function App() {
   const [lang, setLang] = useState('ru');
   const [selectedSeries, setSelectedSeries] = useState('ALL');
   
-  // По умолчанию фиксируем 2026 год и все месяцы
+  // Год 2026, все месяцы, вид по умолчанию — карточки ('list')
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
-  const [viewMode, setViewMode] = useState('calendar');
+  const [viewMode, setViewMode] = useState('list');
   const [showPast, setShowPast] = useState(true);
 
   const [selectedRace, setSelectedRace] = useState(null);
@@ -84,7 +85,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Фильтрация гонок
+  // Фильтрация этапов
   const filteredRaces = useMemo(() => {
     return races.filter((race) => {
       const seriesCode = (typeof race.series === 'object' ? race.series?.code || race.series?.short_name : race.series)?.toLowerCase() || '';
@@ -206,6 +207,7 @@ export default function App() {
           </div>
         ) : (
           <>
+            {/* Трекер прогресса сезона */}
             <SeasonTracker
               races={races}
               activeSeries={selectedSeries}
@@ -216,21 +218,43 @@ export default function App() {
               onSelectRace={setSelectedRace}
             />
 
-            <CalendarView
-              activeYear={selectedYear}
-              calMonth={calMonth}
-              setCalMonth={setCalMonth}
-              availableMonths={availableMonths}
-              handlePrevMonth={handlePrevMonth}
-              handleNextMonth={handleNextMonth}
-              calendarDays={calendarDays}
-              isRaceLive={isRaceLive}
-              openDayModal={(racesOnDay) => {
-                if (racesOnDay && racesOnDay[0]) setSelectedRace(racesOnDay[0]);
-              }}
-              lang={lang}
-              t={t}
-            />
+            {/* Условный рендеринг: Карточки (list) или Календарная сетка (calendar) */}
+            {viewMode === 'list' ? (
+              filteredRaces.length === 0 ? (
+                <div className="flex items-center justify-center h-64 text-zinc-500 text-sm">
+                  {lang === 'ru' ? 'Нет гонок по выбранным критериям.' : 'No races match the selected criteria.'}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredRaces.map((race) => (
+                    <RaceCard
+                      key={race.id}
+                      race={race}
+                      onClick={() => setSelectedRace(race)}
+                      isLive={isRaceLive(race)}
+                      lang={lang}
+                      t={t}
+                    />
+                  ))}
+                </div>
+              )
+            ) : (
+              <CalendarView
+                activeYear={selectedYear}
+                calMonth={calMonth}
+                setCalMonth={setCalMonth}
+                availableMonths={availableMonths}
+                handlePrevMonth={handlePrevMonth}
+                handleNextMonth={handleNextMonth}
+                calendarDays={calendarDays}
+                isRaceLive={isRaceLive}
+                openDayModal={(racesOnDay) => {
+                  if (racesOnDay && racesOnDay[0]) setSelectedRace(racesOnDay[0]);
+                }}
+                lang={lang}
+                t={t}
+              />
+            )}
           </>
         )}
       </main>
