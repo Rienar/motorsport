@@ -1,0 +1,42 @@
+name: Sync CSV to Database
+
+on:
+  workflow_run:
+    workflows: ["01 Fetch F1 Calendar to CSV"] # Имя первого workflow (поле name)
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch: # Возможность запустить отдельно вручную
+
+permissions:
+  contents: read
+
+jobs:
+  sync-to-supabase:
+    runs-on: ubuntu-latest
+    # Запускаем только если предыдущий workflow завершился успешно
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Забираем самый свежий коммит с обновленным CSV
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install supabase
+
+      - name: Sync CSV to Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          python scripts/sync_to_db.py
