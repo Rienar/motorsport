@@ -24,7 +24,6 @@ export const Header = ({
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white">Race Tracker</h1>
         </div>
-
         <div className="flex items-center gap-2 sm:gap-3">
           <button onClick={() => setShowPast(!showPast)} className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-colors" title={lang === 'ru' ? 'Показывать прошедшие' : 'Show past'}>
             {showPast ? <Eye size={15} /> : <EyeOff size={15} />}
@@ -38,7 +37,6 @@ export const Header = ({
           </button>
         </div>
       </div>
-
       {/* Filters Row */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2.5">
@@ -57,9 +55,7 @@ export const Header = ({
               </button>
             ))}
           </div>
-
           <div className="hidden sm:block w-px h-5 bg-white/10"></div>
-
           <div className="flex flex-wrap gap-1.5">
             {yearsToDisplay.map(y => (
               <button
@@ -67,7 +63,7 @@ export const Header = ({
                 onClick={() => setActiveYear(y)}
                 className={`px-2.5 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all ${
                   String(activeYear) === String(y) 
-                    ? 'bg-purple-600 text-white shadow-[0_0_8px_rgba(168,85,247,0.5)]' 
+                    ? 'bg-purple-600 text-white shadow-glow-purple' 
                     : 'bg-transparent text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -76,10 +72,9 @@ export const Header = ({
             ))}
           </div>
         </div>
-
         <div className="flex items-center gap-2 sm:gap-3">
           {(activeSeries || 'ALL').toLowerCase() === 'f1' && (
-            <button onClick={onOpenSeason} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 transition-all shadow-[0_0_12px_rgba(245,158,11,0.25)] active:scale-95">
+            <button onClick={onOpenSeason} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 transition-all shadow-glow-amber active:scale-95">
               <Trophy size={14} className="text-amber-400" />
               <span className="hidden sm:inline">{lang === 'ru' ? 'Зачёт' : 'Standings'}</span>
             </button>
