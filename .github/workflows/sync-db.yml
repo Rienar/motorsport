@@ -2,7 +2,7 @@ name: Sync CSV to Database
 
 on:
   workflow_run:
-    workflows: ["01 Fetch F1 Calendar to CSV"] # Имя первого workflow (поле name)
+    workflows: ["Update F1 Calendar CSV"] # Имя первого workflow (поле name)
     types:
       - completed
     branches:
