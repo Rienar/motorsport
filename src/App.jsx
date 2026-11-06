@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 
-// Именованные экспорты (в фигурных скобках)
+// Именованные экспорты
 import { Header } from './components/Header';
 import { CalendarView } from './components/CalendarView';
 import { SeasonTracker } from './components/SeasonTracker';
 import { MonthModal } from './components/MonthModal';
 import { SeasonModal } from './components/SeasonModal';
 
-// Экспорт по умолчанию (без фигурных скобок)
+// Экспорт по умолчанию
 import RaceModal from './components/RaceModal';
 
 // Сервисы, хуки и константы
@@ -34,18 +34,18 @@ export default function App() {
   const [selectedRace, setSelectedRace] = useState(null);
   const [isSeasonModalOpen, setIsSeasonModalOpen] = useState(false);
 
-  // Текущий словарь локализации
+  // Словарь переводов
   const t = translations?.[lang] || translations?.ru || {};
 
-  // Функция проверки: идет ли гонка сегодня
+  // Проверка прямого эфира / гонки сегодня
   const isRaceLive = (race) => {
     if (!race || !race.date) return false;
     const today = new Date().toDateString();
-    const raceDay = new Date(race.date).toDateString();
+    const raceDay = (race.parsedDate || new Date(race.date)).toDateString();
     return today === raceDay;
   };
 
-  // Хук турнирной таблицы (теперь получает все нужные аргументы)
+  // Хук турнирной таблицы со всеми аргументами
   const standingsData = useRaceStandings(selectedRace, races, selectedYear, isRaceLive);
 
   const fetchData = async () => {
@@ -56,15 +56,14 @@ export default function App() {
         getRaces(),
         getSeries(),
       ]);
-      
-      // Добавляем parsedDate для совместимости с хуком useRaceStandings
-      const formattedRaces = racesData.map(r => ({
+
+      const formattedRaces = (racesData || []).map(r => ({
         ...r,
-        parsedDate: new Date(r.date)
+        parsedDate: r.date ? new Date(r.date) : new Date()
       }));
 
       setRaces(formattedRaces);
-      setSeriesList(seriesData);
+      setSeriesList(seriesData || []);
     } catch (err) {
       console.error('Ошибка при загрузке данных:', err);
       setError(err);
@@ -78,26 +77,22 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Многоуровневая фильтрация гонок
+  // Фильтрация этапов для отображения
   const filteredRaces = races.filter((race) => {
-    // 1. Фильтр по серии
-    const code = race.series?.code?.toLowerCase();
-    const shortName = (race.series?.short_name || race.series)?.toString().toUpperCase();
+    const seriesCode = (typeof race.series === 'object' ? race.series?.code || race.series?.short_name : race.series)?.toLowerCase() || '';
     const filterVal = selectedSeries.toLowerCase();
-    const matchesSeries = selectedSeries === 'ALL' || code === filterVal || shortName === selectedSeries.toUpperCase();
+    const matchesSeries = selectedSeries === 'ALL' || seriesCode === filterVal;
 
-    // 2. Фильтр по году
-    const raceYear = race.season || race.parsedDate.getFullYear();
+    const raceDate = race.parsedDate || new Date(race.date);
+    const raceYear = race.season || raceDate.getFullYear();
     const matchesYear = raceYear === selectedYear;
 
-    // 3. Фильтр по месяцу
-    const raceMonth = race.parsedDate.getMonth() + 1; // getMonth() возвращает 0-11
+    const raceMonth = raceDate.getMonth() + 1;
     const matchesMonth = selectedMonth === 'all' || raceMonth === parseInt(selectedMonth, 10);
 
-    // 4. Фильтр прошедших гонок
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const isPast = race.parsedDate < today;
+    const isPast = raceDate < today;
     const matchesPast = showPast ? true : !isPast;
 
     return matchesSeries && matchesYear && matchesMonth && matchesPast;
@@ -149,16 +144,20 @@ export default function App() {
         ) : (
           <>
             <SeasonTracker
-              races={filteredRaces}
+              races={races}
+              activeSeries={selectedSeries}
+              activeYear={selectedYear}
+              currentTime={new Date()}
+              lang={lang}
+              t={t}
               onSelectRace={setSelectedRace}
-              onSelectMonth={setSelectedMonth}
             />
 
             <CalendarView
               races={filteredRaces}
               viewMode={viewMode}
               onSelectRace={setSelectedRace}
-              isRaceLive={isRaceLive} 
+              isRaceLive={isRaceLive}
               lang={lang}
               t={t}
             />
