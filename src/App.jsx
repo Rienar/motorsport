@@ -1,28 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { CalendarView } from './components/CalendarView';
 import { SeasonTracker } from './components/SeasonTracker';
 import { RaceModal } from './components/RaceModal';
 import { MonthModal } from './components/MonthModal';
 import { SeasonModal } from './components/SeasonModal';
-import { useRaces } from './hooks/useRaces';
+import { getRaces, getSeries } from './services/queries';
 import { useRaceStandings } from './hooks/useRaceStandings';
 
 export default function App() {
+  const [races, setRaces] = useState([]);
+  const [seriesList, setSeriesList] = useState([]);
   const [selectedSeries, setSelectedSeries] = useState('ALL');
   const [selectedYear, setSelectedYear] = useState(2025);
-  const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
+  const [viewMode, setViewMode] = useState('list');
   const [selectedRace, setSelectedRace] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [isSeasonModalOpen, setIsSeasonModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Получаем список гонок через React Query
-  const { data: races = [], isLoading, error, refetch } = useRaces(selectedYear);
-
-  // Получаем результаты и турнирную таблицу для выбранного года/серии
+  // Турнирная таблица для модалки итогов сезона
   const { data: standings } = useRaceStandings(selectedYear);
 
-  // Фильтрация этапов с поддержкой как вложенного объекта series, так и кодов/названий
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const [racesData, seriesData] = await Promise.all([
+        getRaces(),
+        getSeries(),
+      ]);
+      setRaces(racesData);
+      setSeriesList(seriesData);
+    } catch (err) {
+      console.error('Ошибка при загрузке данных:', err);
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [selectedYear]);
+
+  // Фильтрация этапов с поддержкой структуры series:series_id
   const filteredRaces = selectedSeries === 'ALL'
     ? races
     : races.filter((race) => {
@@ -35,6 +58,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#0d0f12] text-zinc-100 flex flex-col font-sans selection:bg-red-500/30">
       <Header
+        seriesList={seriesList}
         selectedSeries={selectedSeries}
         onSelectSeries={setSelectedSeries}
         selectedYear={selectedYear}
@@ -42,7 +66,7 @@ export default function App() {
         viewMode={viewMode}
         onToggleViewMode={() => setViewMode((prev) => (prev === 'list' ? 'calendar' : 'list'))}
         onOpenSeasonModal={() => setIsSeasonModalOpen(true)}
-        onRefresh={() => refetch()}
+        onRefresh={fetchData}
         isRefreshing={isLoading}
       />
 
@@ -57,7 +81,7 @@ export default function App() {
             <p className="font-semibold">Не удалось загрузить данные</p>
             <p className="text-xs text-zinc-500">{error.message}</p>
             <button
-              onClick={() => refetch()}
+              onClick={fetchData}
               className="mt-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-200 rounded-lg transition-colors"
             >
               Попробовать снова
@@ -80,7 +104,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Модальное окно гонки */}
       {selectedRace && (
         <RaceModal
           race={selectedRace}
@@ -88,7 +111,6 @@ export default function App() {
         />
       )}
 
-      {/* Модальное окно этапов конкретного месяца */}
       {selectedMonth !== null && (
         <MonthModal
           month={selectedMonth}
@@ -98,7 +120,6 @@ export default function App() {
         />
       )}
 
-      {/* Модальное окно итогов сезона */}
       {isSeasonModalOpen && (
         <SeasonModal
           isOpen={isSeasonModalOpen}
