@@ -36,33 +36,80 @@ export default function RaceCard({ race, onClick, isNext = false, isLiveNow = fa
   const tMsk = rDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' });
   const cName = circuit?.country || race.country || race.location_country || '';
   const tName = circuit?.name || race.circuit || race.location || '';
-  
+
+  // Динамические цвета для плашки "Скоро" и обводки в зависимости от серии
+  let seriesBorderColor = 'border-blue-500/50';
+  let seriesShadow = 'shadow-[0_0_20px_rgba(59,130,246,0.3)]';
+  let badgeBg = 'bg-blue-500';
+  let badgeShadow = 'shadow-[0_0_10px_rgba(59,130,246,0.6)]';
+
+  if (seriesCodeKey === 'f1') {
+    seriesBorderColor = 'border-red-500/50';
+    seriesShadow = 'shadow-[0_0_20px_rgba(239,68,68,0.3)]';
+    badgeBg = 'bg-red-600';
+    badgeShadow = 'shadow-[0_0_10px_rgba(239,68,68,0.6)]';
+  } else if (seriesCodeKey === 'dtm') {
+    seriesBorderColor = 'border-yellow-500/50';
+    seriesShadow = 'shadow-[0_0_20px_rgba(234,179,8,0.3)]';
+    badgeBg = 'bg-yellow-500 text-black';
+    badgeShadow = 'shadow-[0_0_10px_rgba(234,179,8,0.6)]';
+  } else if (seriesCodeKey === 'super_gt') {
+    seriesBorderColor = 'border-emerald-500/50';
+    seriesShadow = 'shadow-[0_0_20px_rgba(16,185,129,0.3)]';
+    badgeBg = 'bg-emerald-500';
+    badgeShadow = 'shadow-[0_0_10px_rgba(16,185,129,0.6)]';
+  } else if (seriesCodeKey === 'wec') {
+    seriesBorderColor = 'border-blue-500/50';
+    seriesShadow = 'shadow-[0_0_20px_rgba(59,130,246,0.3)]';
+    badgeBg = 'bg-blue-600';
+    badgeShadow = 'shadow-[0_0_10px_rgba(59,130,246,0.6)]';
+  }
+
   return (
-    <div onClick={onClick} className={`relative group bg-surface-card border rounded-2xl p-4 sm:p-5 flex flex-row items-start justify-between gap-4 transition-all duration-300 shadow-lg cursor-pointer ${isLiveNow ? 'border-red-500/50 shadow-glow-red' : isNext ? 'border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 'border-white/5 hover:border-blue-500/50 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]'}`}>
-      {isNext && !isLiveNow && <div className="absolute top-0 right-1/2 translate-x-1/2 bg-blue-500 text-white text-[10px] font-black uppercase px-3 py-0.5 rounded-b-lg shadow-[0_0_10px_rgba(59,130,246,0.6)] z-10">{lang === 'ru' ? 'Скоро' : 'Soon'}</div>}
-      {isLiveNow && <div className="absolute top-0 right-1/2 translate-x-1/2 bg-red-600 text-white text-[10px] font-black uppercase px-3 py-0.5 rounded-b-lg shadow-glow-red z-10 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />{lang === 'ru' ? 'Лайв' : 'LIVE'}</div>}
+    <div onClick={onClick} className={`relative group bg-surface-card border rounded-2xl p-4 sm:p-5 flex flex-col gap-2 transition-all duration-300 shadow-lg cursor-pointer ${isLiveNow ? 'border-red-500/50 shadow-glow-red' : isNext ? `${seriesBorderColor} ${seriesShadow}` : 'border-white/5 hover:border-white/30 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)]'}`}>
       
-      <div className="flex flex-col items-start gap-2.5 flex-1 min-w-0">
-        <span className={`px-2.5 py-1 rounded-md text-[10px] sm:text-xs font-black uppercase tracking-wider ${isLiveNow ? 'bg-red-600 text-white shadow-glow-red' : sCfg.badgeClass}`}>{bLabel}</span>
-        <h3 className="text-lg sm:text-2xl font-bold text-white tracking-tight mt-1 truncate w-full">{race.name || 'Race'}</h3>
-        <div className="flex items-center gap-1.5 text-xs sm:text-sm text-zinc-400 truncate w-full">
-          <MapPin size={14} className="text-zinc-500 shrink-0" />
-          <span className="truncate">{cName}{cName && tName ? ', ' : ''}{tName || 'TBA'}</span>
+      {/* Плашка СКОРО с цветом серии */}
+      {isNext && !isLiveNow && (
+        <div className={`absolute top-0 right-1/2 translate-x-1/2 ${badgeBg} text-white text-[10px] font-black uppercase px-3 py-0.5 rounded-b-lg ${badgeShadow} z-10`}>
+          {lang === 'ru' ? 'Скоро' : 'Soon'}
         </div>
+      )}
+
+      {/* Плашка ЛАЙВ */}
+      {isLiveNow && (
+        <div className="absolute top-0 right-1/2 translate-x-1/2 bg-red-600 text-white text-[10px] font-black uppercase px-3 py-0.5 rounded-b-lg shadow-glow-red z-10 flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+          {lang === 'ru' ? 'Лайв' : 'LIVE'}
+        </div>
+      )}
+      
+      {/* 1. Строка: Бейдж серии */}
+      <div className="flex items-start mb-1">
+        <span className={`px-2.5 py-1 rounded-md text-[10px] sm:text-xs font-black uppercase tracking-wider ${isLiveNow ? 'bg-red-600 text-white shadow-glow-red' : sCfg.badgeClass}`}>
+          {bLabel}
+        </span>
       </div>
 
-      <div className="flex flex-col items-end gap-3 shrink-0">
-        
-        {/* Обновленная лаконичная дата */}
-        <div className="flex items-center gap-1.5 px-1 mt-1">
+      {/* 2. Строка: Название гонки (слева) и Дата (справа) */}
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight truncate min-w-0">
+          {race.name || 'Race'}
+        </h3>
+        <div className="flex items-center gap-1.5 shrink-0 text-zinc-300">
           <Calendar size={14} className="text-zinc-500 shrink-0" />
-          <span className="text-zinc-300 text-xs sm:text-sm font-medium tracking-wide capitalize">
+          <span className="text-sm sm:text-base font-medium tracking-wide capitalize">
             {fDate}
           </span>
         </div>
+      </div>
 
-        {/* Блок времени */}
-        <div className="flex items-center gap-3 mt-auto px-1">
+      {/* 3. Строка: Локация (слева) и Время (справа) */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-1.5 text-xs sm:text-sm text-zinc-400 truncate min-w-0">
+          <MapPin size={14} className="text-zinc-500 shrink-0" />
+          <span className="truncate">{cName}{cName && tName ? ', ' : ''}{tName || 'TBA'}</span>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-1.5" title={lang === 'ru' ? 'Местное время' : 'Local time'}>
             <MapPin size={13} className="text-zinc-500 shrink-0" />
             <span className="text-white font-bold tracking-wide text-sm sm:text-base">{tLocal}</span>
@@ -72,8 +119,8 @@ export default function RaceCard({ race, onClick, isNext = false, isLiveNow = fa
             <span className="text-white font-bold tracking-wide text-sm sm:text-base">{tMsk}</span>
           </div>
         </div>
-
       </div>
+
     </div>
   );
 }
