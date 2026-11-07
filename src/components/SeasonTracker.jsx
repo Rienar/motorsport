@@ -163,7 +163,7 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', n
       {isCompleted ? (
         <CheckeredFlagIcon className="absolute right-8 top-1/2 -translate-y-1/2 w-32 h-32 text-zinc-300 pointer-events-none z-0" />
       ) : (
-        <div className={`absolute right-12 top-1/2 -translate-y-1/2 text-7xl sm:text-8xl font-black italic opacity-[0.03] pointer-events-none select-none z-0 ${watermarkColor}`}>
+        <div className={`absolute right-12 top-1/2 -translate-y-1/2 text-7xl sm:text-8xl font-black italic opacity-[0.10] pointer-events-none select-none z-0 ${watermarkColor}`}>
           {sCfg.label['en'] || sCfg.label['ru'] || activeSeries}
         </div>
       )}
