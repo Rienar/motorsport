@@ -5,7 +5,6 @@ import { getSeriesConfig } from '../constants/seriesConfig';
 export default function RaceCard({ race, onClick, isNext = false, isLiveNow = false, lang = 'ru' }) {
   if (!race) return null;
 
-  // Маппинг числовых series_id из таблицы races в строковые коды из конфига
   const getSeriesCodeFromId = (seriesProp) => {
     if (!seriesProp) return 'all';
     if (typeof seriesProp === 'object') {
@@ -28,12 +27,15 @@ export default function RaceCard({ race, onClick, isNext = false, isLiveNow = fa
   const sCfg = getSeriesConfig(seriesCodeKey);
   const bLabel = sCfg.shortLabel ? (sCfg.shortLabel[lang] || sCfg.shortLabel) : (sCfg.label?.[lang] || 'RACE');
 
+  const circuit = Array.isArray(race.circuits) ? race.circuits[0] : (race.circuits || {});
+  const circuitTz = circuit?.timezone || 'UTC';
+
   const rDate = race.parsedDate instanceof Date && !isNaN(race.parsedDate) ? race.parsedDate : new Date(race.date);
   const fDate = rDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short', weekday: 'short' });
-  const tLocal = race.local_time || rDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+  const tLocal = race.local_time || rDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { timeZone: circuitTz, hour: '2-digit', minute: '2-digit' });
   const tMsk = rDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' });
-  const cName = race.circuits?.country || race.country || race.location_country || '';
-  const tName = race.circuits?.name || race.circuit || race.location || '';
+  const cName = circuit?.country || race.country || race.location_country || '';
+  const tName = circuit?.name || race.circuit || race.location || '';
   
   return (
     <div onClick={onClick} className={`relative group bg-surface-card border rounded-2xl p-4 sm:p-5 flex flex-row items-start justify-between gap-4 transition-all duration-300 shadow-lg cursor-pointer ${isLiveNow ? 'border-red-500/50 shadow-glow-red' : isNext ? 'border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 'border-white/5 hover:border-blue-500/50 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]'}`}>
