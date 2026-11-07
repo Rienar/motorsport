@@ -7,6 +7,25 @@ import { getSeasonResults } from '../services/queries';
 const resultsCache = new Map();
 const weatherCache = new Map();
 
+// --- Вспомогательный маппер для определения кода серии ---
+const getSeriesCodeFromId = (seriesProp) => {
+  if (!seriesProp) return 'all';
+  if (typeof seriesProp === 'object') {
+    return (seriesProp.code || seriesProp.short_name || '').toLowerCase();
+  }
+  const idMap = {
+    1: 'f1',
+    2: 'wec',
+    3: 'dtm',
+    4: 'super_gt',
+    5: 'imsa'
+  };
+  if (idMap[Number(seriesProp)]) {
+    return idMap[Number(seriesProp)];
+  }
+  return String(seriesProp).toLowerCase();
+};
+
 // --- Вручную отрисованные иконки (защита от крашей библиотеки) ---
 const Speedometer = ({ size, className }) => (
   <svg className={className} width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -191,7 +210,10 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
   if (!race) return null;
 
   const t = translations?.[lang] || translations?.ru || {};
-  const sCfg = getSeriesConfig(race.series_id || race.series);
+  
+  // Корректное определение серии гонки
+  const seriesCode = getSeriesCodeFromId(race.series_id ?? race.series);
+  const sCfg = getSeriesConfig(seriesCode);
   const bLabel = sCfg.shortLabel ? (sCfg.shortLabel[lang] || sCfg.shortLabel) : (sCfg.label?.[lang] || 'RACE');
   
   const formattedDate = rDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'long' });
@@ -205,9 +227,7 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
   const lengthKm = circuit.length_km || null;
   const turnsCount = circuit.turns || null;
   
-  // Правильная ссылка
   const wikiUrl = race.wiki_url || circuit.wiki_url || null;
-
   const showResults = raceResults && raceResults.stage && (raceResults.stage.drivers?.length > 0 || raceResults.stage.teams?.length > 0);
 
   const handleGoogleCalendar = () => {
@@ -299,7 +319,12 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
         </button>
 
         <div className="flex flex-col items-start gap-3 pr-8">
-          <span className={`px-3 py-1 rounded-md text-xs font-black uppercase tracking-wider ${sCfg.badgeClass}`}>{bLabel}</span>
+          <span 
+            className={`px-3 py-1 rounded-md text-xs font-black uppercase tracking-wider ${sCfg.badgeClass}`}
+            style={{ boxShadow: '0 0 14px rgba(255,255,255,0.18)' }}
+          >
+            {bLabel}
+          </span>
           <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight leading-tight">{race.name}</h2>
           <div className="flex items-center gap-2 text-zinc-400 text-sm sm:text-base">
             <MapPin size={16} className="text-zinc-500 shrink-0" />
@@ -405,7 +430,6 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
               <TrackInfoRow Icon={Repeat} label={lapsCount ? (t.laps || 'Круги') : (t.trackLength || 'Длина')} value={lapsCount ? lapsCount : lengthKm ? lengthKm : '?'} unit={lapsCount ? (t.lapsShort || 'круг.') : lengthKm ? 'км' : ''} />
               <TrackInfoRow Icon={Turns} label={t.turns || 'Повороты'} value={turnsCount || '?'} unit={t.turnsShort || 'пов.'} />
               
-              {/* Плашка с погодой */}
               {weather && (
                 <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-1">
                   <div className="flex items-center gap-2.5">
