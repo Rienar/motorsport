@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Trophy, Clock, ChevronRight } from 'lucide-react';
 import { getSeriesConfig } from '../constants/seriesConfig';
 
 const StopwatchIcon = ({ size = 20, className = "" }) => (
@@ -8,6 +9,20 @@ const StopwatchIcon = ({ size = 20, className = "" }) => (
     <path d="M12 5V3" />
     <path d="M9 2h6" />
     <path d="M19 7l1.5-1.5" />
+  </svg>
+);
+
+const CheckeredFlagIcon = ({ className = "" }) => (
+  <svg viewBox="0 0 200 150" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} opacity="0.05">
+    <path d="M10 20 Q 50 -10 90 20 T 170 20 L 170 130 Q 130 100 90 130 T 10 130 Z" fill="currentColor"/>
+    <path d="M10 20 Q 50 -10 90 20 L 90 47 Q 50 17 10 47 Z" fill="#000" opacity="0.3"/>
+    <path d="M90 20 Q 130 50 170 20 L 170 47 Q 130 77 90 47 Z" fill="#fff" opacity="0.8"/>
+    <path d="M10 47 Q 50 17 90 47 L 90 74 Q 50 44 10 74 Z" fill="#fff" opacity="0.8"/>
+    <path d="M90 47 Q 130 77 170 47 L 170 74 Q 130 104 90 74 Z" fill="#000" opacity="0.3"/>
+    <path d="M10 74 Q 50 44 90 74 L 90 101 Q 50 71 10 101 Z" fill="#000" opacity="0.3"/>
+    <path d="M90 74 Q 130 104 170 74 L 170 101 Q 130 131 90 101 Z" fill="#fff" opacity="0.8"/>
+    <path d="M10 101 Q 50 71 90 101 L 90 130 Q 50 100 10 130 Z" fill="#fff" opacity="0.8"/>
+    <path d="M90 101 Q 130 131 170 101 L 170 130 Q 130 160 90 130 Z" fill="#000" opacity="0.3"/>
   </svg>
 );
 
@@ -111,35 +126,51 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', n
     const formattedDate = nDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short' });
 
     return (
-      <div className="w-full bg-surface-card border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
-        <div className="flex items-center gap-3.5 w-full sm:w-auto min-w-0">
-          <div className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-amber-400 shrink-0 shadow-inner">
-            <StopwatchIcon size={22} />
-          </div>
+      <div className="w-full bg-surface-card border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl relative overflow-hidden h-[104px]">
+        <StopwatchIcon className="absolute -left-6 top-1/2 -translate-y-1/2 w-40 h-40 text-amber-400 opacity-10 pointer-events-none transform -rotate-12 z-0" />
+        
+        <div className="flex items-center gap-3.5 w-full sm:w-auto min-w-0 relative z-10">
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${nextCfg.badgeClass}`}>
+              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${nextCfg.badgeClass}`} style={{boxShadow: '0 0 10px rgba(255,255,255,0.15)'}}>
                 {nextLabel}
               </span>
               <span className="text-xs font-semibold text-zinc-400">{formattedDate}</span>
             </div>
-            <h4 className="text-sm sm:text-base font-bold text-white tracking-tight truncate">
+            <h4 className="text-lg sm:text-2xl font-bold text-white tracking-tight truncate">
               {nextRace.name}
             </h4>
           </div>
         </div>
-        <div className="w-full sm:w-auto flex justify-end shrink-0">
+        <div className="w-full sm:w-auto flex justify-end shrink-0 relative z-10">
           <LiveCountdownTimer nextRace={nextRace} lang={lang} />
         </div>
       </div>
     );
   }
 
+  // Get watermark color logic based on series
+  let watermarkColor = 'text-purple-500';
+  if (sCfg.code === 'f1') watermarkColor = 'text-red-500';
+  if (sCfg.code === 'dtm') watermarkColor = 'text-yellow-500';
+  if (sCfg.code === 'wec') watermarkColor = 'text-blue-500';
+  if (sCfg.code === 'super_gt') watermarkColor = 'text-emerald-500';
+
   return (
-    <div className="w-full bg-surface-card border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col gap-3 shadow-xl">
-      <div className="flex items-center justify-between">
+    <div className="w-full bg-surface-card border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-xl relative overflow-hidden h-[104px]">
+      
+      {/* Background Watermark */}
+      {isCompleted ? (
+        <CheckeredFlagIcon className="absolute right-8 top-1/2 -translate-y-1/2 w-32 h-32 text-zinc-300 pointer-events-none z-0" />
+      ) : (
+        <div className={`absolute right-12 top-1/2 -translate-y-1/2 text-7xl sm:text-8xl font-black italic opacity-[0.03] pointer-events-none select-none z-0 ${watermarkColor}`}>
+          {sCfg.label['en'] || sCfg.label['ru'] || activeSeries}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between relative z-10">
         <div className="flex items-center gap-3 min-w-0">
-          <span className={`px-2.5 py-1 rounded-md text-xs font-black uppercase shrink-0 ${sCfg.badgeClass}`}>
+          <span className={`px-2.5 py-1 rounded-md text-xs font-black uppercase shrink-0 ${sCfg.badgeClass}`} style={{boxShadow: '0 0 12px rgba(255,255,255,0.15)'}}>
             {sCfg.label[lang] || activeSeries}
           </span>
           {!isCompleted && nextSeriesRace && (
@@ -167,13 +198,13 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', n
         </div>
       </div>
 
-      <div className="relative pt-5 pb-1">
+      <div className="relative pt-4 pb-0.5 z-10 mt-auto">
         {!isCompleted && progressPercent > 0 && progressPercent < 100 && (
           <div 
             className="absolute top-0 flex flex-col items-center transform -translate-x-1/2 pointer-events-none transition-all duration-500"
             style={{ left: `${progressPercent}%` }}
           >
-            <span className="text-[10px] font-mono font-bold text-white mb-1 drop-shadow-[0_0_6px_rgba(255,255,255,0.6)]">
+            <span className="text-[11px] sm:text-xs font-mono font-bold text-white mb-1 drop-shadow-[0_0_6px_rgba(255,255,255,0.6)]">
               {progressPercent}%
             </span>
             <div className="w-0.5 h-3 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.9),0_0_20px_rgba(59,130,246,0.6)]" />
