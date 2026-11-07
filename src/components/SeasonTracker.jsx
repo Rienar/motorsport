@@ -187,7 +187,7 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', n
 
         <div className="shrink-0 text-right">
           {isCompleted ? (
-            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
+            <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">
               {lang === 'ru' ? 'Чемпионат завершен' : 'Championship Completed'}
             </span>
           ) : (
