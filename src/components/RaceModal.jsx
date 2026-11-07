@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { getSeriesConfig } from '../constants/seriesConfig';
 import { translations } from '../constants/translations';
-import { Sun, CloudRain, CloudSun, CloudSnow, CloudFog, CloudLightning, Globe, X, MapPin, Calendar, Clock, CalendarPlus, ExternalLink, Users, Shield } from 'lucide-react';
+import { Sun, CloudRain, CloudSun, CloudSnow, CloudFog, CloudLightning, Globe, X, MapPin, Calendar, Clock, CalendarPlus, ExternalLink } from 'lucide-react';
 import { getSeasonResults } from '../services/queries'; 
 
 const resultsCache = new Map();
 const weatherCache = new Map();
 
-// --- Вспомогательный маппер для определения кода серии ---
 const getSeriesCodeFromId = (seriesProp) => {
   if (!seriesProp) return 'all';
   if (typeof seriesProp === 'object') {
@@ -26,7 +25,6 @@ const getSeriesCodeFromId = (seriesProp) => {
   return String(seriesProp).toLowerCase();
 };
 
-// --- Вручную отрисованные иконки (защита от крашей библиотеки) ---
 const Speedometer = ({ size, className }) => (
   <svg className={className} width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l4-4" />
@@ -55,7 +53,6 @@ const Apple = ({ size, className }) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M10 2c1 .5 2 2 2 5" />
   </svg>
 );
-// ----------------------------------------------------------------
 
 const getWeatherIcon = (code) => {
   if ([0, 1].includes(code)) return <Sun size={16} className="text-yellow-400" />;
@@ -87,9 +84,9 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
   const [isExpanded, setIsExpanded] = useState(false);
 
   const circuit = race ? (Array.isArray(race.circuits) ? race.circuits[0] : (race.circuits || {})) : {};
+  const circuitTz = circuit?.timezone || 'UTC';
   const rDate = race?.parsedDate instanceof Date && !isNaN(race.parsedDate) ? race.parsedDate : new Date(race?.date);
 
-  // Эффект погоды
   useEffect(() => {
     if (!race?.id) return;
     
@@ -143,7 +140,6 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
     return () => { isMounted = false; };
   }, [race?.id, circuit.lat, circuit.lng, circuit.name, circuit.country, race?.lat, race?.lng, race?.name, rDate]);
 
-  // Эффект результатов
   useEffect(() => {
     if (!race?.id) return;
     
@@ -210,15 +206,13 @@ export default function RaceModal({ race, onClose, allRaces = [], lang = 'ru' })
   if (!race) return null;
 
   const t = translations?.[lang] || translations?.ru || {};
-  
-  // Корректное определение серии гонки
   const seriesCode = getSeriesCodeFromId(race.series_id ?? race.series);
   const sCfg = getSeriesConfig(seriesCode);
   const bLabel = sCfg.shortLabel ? (sCfg.shortLabel[lang] || sCfg.shortLabel) : (sCfg.label?.[lang] || 'RACE');
   
   const formattedDate = rDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'long' });
   const moscowTime = rDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' });
-  const localTime = race.local_time || rDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+  const localTime = race.local_time || rDate.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { timeZone: circuitTz, hour: '2-digit', minute: '2-digit' });
 
   const cName = circuit.country || race.country || race.location_country || '';
   const tName = circuit.name || race.circuit || race.location || '';
