@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, X } from 'lucide-react';
+import { Trophy, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { getF1Standings } from '../services/queries';
 
 const getTeamColor = (teamName) => {
@@ -21,13 +21,17 @@ const getTeamColor = (teamName) => {
 
 export const StandingsModal = ({ isOpen, onClose, lang = 'ru', year }) => {
   const [activeTab, setActiveTab] = useState('drivers');
+  const [isExpanded, setIsExpanded] = useState(false);
   const [drivers, setDrivers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!isOpen) return;
-
+    
+    // Сбрасываем разворот при новом открытии
+    setIsExpanded(false); 
+    
     let isMounted = true;
     const loadData = async () => {
       setIsLoading(true);
@@ -40,9 +44,7 @@ export const StandingsModal = ({ isOpen, onClose, lang = 'ru', year }) => {
       } catch (error) {
         console.error('Ошибка загрузки зачета F1 из БД:', error);
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
     };
 
@@ -55,11 +57,73 @@ export const StandingsModal = ({ isOpen, onClose, lang = 'ru', year }) => {
 
   if (!isOpen) return null;
 
+  // Функция для рендера списка (Пилоты или Команды)
+  const renderList = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center py-10">
+          <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      );
+    }
+
+    const data = activeTab === 'drivers' ? drivers : teams;
+    
+    if (data.length === 0) {
+      return (
+        <div className="text-zinc-500 text-center py-10">
+          {lang === 'ru' ? 'Данные отсутствуют' : 'No data available'}
+        </div>
+      );
+    }
+
+    // Показываем либо всё, либо только Топ-5
+    const visibleData = isExpanded ? data : data.slice(0, 5);
+
+    return (
+      <div className="flex flex-col gap-1.5">
+        {visibleData.map((item, index) => (
+          <div 
+            key={item.name || index} 
+            className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-black text-zinc-500 w-5 text-center">{index + 1}</span>
+              <div className={`w-1 h-6 rounded-full ${getTeamColor(item.team_name || item.name)}`}></div>
+              <div>
+                <div className="text-white font-bold text-sm leading-tight">{item.name}</div>
+                {activeTab === 'drivers' && (
+                  <div className="text-zinc-500 text-[10px] font-medium mt-0.5">{item.team_name}</div>
+                )}
+              </div>
+            </div>
+            <div className="text-white font-black text-base">{item.points}</div>
+          </div>
+        ))}
+
+        {/* Кнопка "Показать все / Свернуть" */}
+        {data.length > 5 && (
+          <button 
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="mt-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold text-zinc-500 hover:text-white bg-white/5 hover:bg-white/10 transition-colors"
+          >
+            {isExpanded 
+              ? (lang === 'ru' ? 'Свернуть' : 'Show Less') 
+              : (lang === 'ru' ? 'Показать все' : 'Show All')
+            }
+            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 transition-opacity duration-300 backdrop-blur-sm">
       <div className="bg-[#11131a] border border-white/10 rounded-2xl w-full max-w-lg shadow-[0_0_40px_rgba(245,158,11,0.15)] flex flex-col transform transition-transform duration-300">
         
-        <div className="flex items-center justify-between p-5 border-b border-white/10">
+        {/* Шапка модалки */}
+        <div className="flex items-center justify-between p-5 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
               <Trophy className="w-4 h-4 text-amber-400" />
@@ -76,9 +140,10 @@ export const StandingsModal = ({ isOpen, onClose, lang = 'ru', year }) => {
           </button>
         </div>
 
-        <div className="flex items-center gap-2 p-5 pb-0">
+        {/* Вкладки */}
+        <div className="flex items-center gap-2 p-5 pb-0 shrink-0">
           <button 
-            onClick={() => setActiveTab('drivers')}
+            onClick={() => { setActiveTab('drivers'); setIsExpanded(false); }}
             className={`px-4 py-2 rounded-t-lg text-sm font-bold transition-colors ${
               activeTab === 'drivers' 
                 ? 'bg-white/5 text-white border-b-2 border-amber-500' 
@@ -88,7 +153,7 @@ export const StandingsModal = ({ isOpen, onClose, lang = 'ru', year }) => {
             {lang === 'ru' ? 'Пилоты' : 'Drivers'}
           </button>
           <button 
-            onClick={() => setActiveTab('teams')}
+            onClick={() => { setActiveTab('teams'); setIsExpanded(false); }}
             className={`px-4 py-2 rounded-t-lg text-sm font-bold transition-colors ${
               activeTab === 'teams' 
                 ? 'bg-white/5 text-white border-b-2 border-amber-500' 
@@ -99,55 +164,9 @@ export const StandingsModal = ({ isOpen, onClose, lang = 'ru', year }) => {
           </button>
         </div>
 
-        <div className="p-5 flex flex-col gap-2 h-[340px] overflow-y-auto">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          ) : activeTab === 'drivers' ? (
-            drivers.length > 0 ? (
-              drivers.map((driver, index) => (
-                <div 
-                  key={driver.name || index} 
-                  className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-black text-zinc-500 w-5 text-center">{index + 1}</span>
-                    <div className={`w-1 h-8 rounded-full ${getTeamColor(driver.team_name)}`}></div>
-                    <div>
-                      <div className="text-white font-bold text-sm">{driver.name}</div>
-                      <div className="text-zinc-500 text-xs font-medium">{driver.team_name}</div>
-                    </div>
-                  </div>
-                  <div className="text-white font-black text-lg">{driver.points}</div>
-                </div>
-              ))
-            ) : (
-              <div className="text-zinc-500 text-center mt-10">
-                {lang === 'ru' ? 'Данные о пилотах пока отсутствуют' : 'No driver data available'}
-              </div>
-            )
-          ) : (
-            teams.length > 0 ? (
-              teams.map((team, index) => (
-                <div 
-                  key={team.name || index} 
-                  className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-black text-zinc-500 w-5 text-center">{index + 1}</span>
-                    <div className={`w-1 h-8 rounded-full ${getTeamColor(team.name)}`}></div>
-                    <div className="text-white font-bold text-sm">{team.name}</div>
-                  </div>
-                  <div className="text-white font-black text-lg">{team.points}</div>
-                </div>
-              ))
-            ) : (
-              <div className="text-zinc-500 text-center mt-10">
-                {lang === 'ru' ? 'Данные о командах пока отсутствуют' : 'No team data available'}
-              </div>
-            )
-          )}
+        {/* Контейнер списка (Динамическая высота, скрытый скроллбар) */}
+        <div className="p-5 overflow-y-auto max-h-[65vh] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {renderList()}
         </div>
 
       </div>
