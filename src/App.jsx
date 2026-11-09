@@ -6,6 +6,7 @@ import { Header } from './components/Header';
 import { CalendarView } from './components/CalendarView';
 import { SeasonTracker } from './components/SeasonTracker';
 import { SeasonModal } from './components/SeasonModal';
+import { StandingsModal } from './components/StandingsModal'; // <-- ДОБАВЛЕН ИМПОРТ
 
 // Экспорты по умолчанию
 import RaceModal from './components/RaceModal';
@@ -34,11 +35,11 @@ export default function App() {
 
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [viewMode, setViewMode] = useState('list');
-  // Прошлые гонки скрыты по умолчанию
   const [showPast, setShowPast] = useState(false);
 
   const [selectedRace, setSelectedRace] = useState(null);
   const [isSeasonModalOpen, setIsSeasonModalOpen] = useState(false);
+  const [isStandingsModalOpen, setIsStandingsModalOpen] = useState(false); // <-- ДОБАВЛЕН СТЕЙТ
 
   const t = translations?.[lang] || translations?.ru || {};
 
@@ -182,6 +183,7 @@ export default function App() {
         viewMode={viewMode}
         setViewMode={setViewMode}
         onOpenSeason={() => setIsSeasonModalOpen(true)}
+        onOpenStandings={() => setIsStandingsModalOpen(true)} // <-- ПРОКИДЫВАЕМ ФУНКЦИЮ
       />
 
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-4">
@@ -307,6 +309,13 @@ export default function App() {
           t={t}
         />
       )}
+
+      {/* ДОБАВЛЕН РЕНДЕР МОДАЛКИ ЗАЧЕТА F1 */}
+      <StandingsModal 
+        isOpen={isStandingsModalOpen} 
+        onClose={() => setIsStandingsModalOpen(false)} 
+        lang={lang}
+      />
     </div>
   );
 }
