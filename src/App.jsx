@@ -6,7 +6,7 @@ import { Header } from './components/Header';
 import { CalendarView } from './components/CalendarView';
 import { SeasonTracker } from './components/SeasonTracker';
 import { SeasonModal } from './components/SeasonModal';
-import { StandingsModal } from './components/StandingsModal'; // <-- ДОБАВЛЕН ИМПОРТ
+import { StandingsModal } from './components/StandingsModal';
 
 // Экспорты по умолчанию
 import RaceModal from './components/RaceModal';
@@ -39,7 +39,7 @@ export default function App() {
 
   const [selectedRace, setSelectedRace] = useState(null);
   const [isSeasonModalOpen, setIsSeasonModalOpen] = useState(false);
-  const [isStandingsModalOpen, setIsStandingsModalOpen] = useState(false); // <-- ДОБАВЛЕН СТЕЙТ
+  const [isStandingsModalOpen, setIsStandingsModalOpen] = useState(false);
 
   const t = translations?.[lang] || translations?.ru || {};
 
@@ -182,8 +182,7 @@ export default function App() {
         setShowPast={setShowPast}
         viewMode={viewMode}
         setViewMode={setViewMode}
-        onOpenSeason={() => setIsSeasonModalOpen(true)}
-        onOpenStandings={() => setIsStandingsModalOpen(true)} // <-- ПРОКИДЫВАЕМ ФУНКЦИЮ
+        onOpenStandings={() => setIsStandingsModalOpen(true)}
       />
 
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-4">
@@ -310,11 +309,11 @@ export default function App() {
         />
       )}
 
-      {/* ДОБАВЛЕН РЕНДЕР МОДАЛКИ ЗАЧЕТА F1 */}
       <StandingsModal 
         isOpen={isStandingsModalOpen} 
         onClose={() => setIsStandingsModalOpen(false)} 
         lang={lang}
+        year={selectedYear}
       />
     </div>
   );
