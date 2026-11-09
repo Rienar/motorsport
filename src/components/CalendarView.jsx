@@ -52,12 +52,10 @@ export const CalendarView = ({
               
               <div className="mt-auto w-full flex flex-col gap-1 items-center sm:items-start">
                 {day.races.map((r, i) => {
-                  // Надежно достаем код серии для конфига
                   const seriesCode = (typeof r.series === 'object' ? r.series?.code || r.series?.short_name : r.series)?.toLowerCase() || '';
                   const sCfg = getSeriesConfig(seriesCode || r.series_id) || {};
                   const isLive = isRaceLive(r);
                   
-                  // Формируем текст метки и сокращаем SUPER GT до GT
                   let rawLabel = sCfg.shortLabel?.[lang] || sCfg.label?.[lang] || seriesCode || 'ALL';
                   let displayLabel = String(rawLabel).toUpperCase();
                   if (displayLabel === 'SUPER GT') displayLabel = 'GT';
@@ -68,7 +66,7 @@ export const CalendarView = ({
                         className={`px-1.5 py-0.5 rounded-[4px] text-[9px] sm:text-[10px] font-black tracking-wider uppercase transition-all ${
                           isLive 
                             ? 'bg-red-600 text-white animate-pulse shadow-[0_0_8px_rgba(220,38,38,0.5)]' 
-                            : `${sCfg.bg || 'bg-white/20'} text-white`
+                            : `${sCfg.bg || 'bg-white/20'} text-white ${sCfg.glow || ''}`
                         }`}
                       >
                         {displayLabel}
