@@ -16,7 +16,7 @@ export const Header = ({
 
   return (
     <header className="w-full max-w-4xl mx-auto px-4 sm:px-6 pt-6 pb-4">
-      {/* Top Row: Title + Controls */}
+      {/* Top Row: Title + Unified Controls */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.3)]">
@@ -24,19 +24,29 @@ export const Header = ({
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white">Race Tracker</h1>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <button onClick={() => setShowPast(!showPast)} className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-colors" title={lang === 'ru' ? 'Показывать прошедшие' : 'Show past'}>
-            {showPast ? <Eye size={15} /> : <EyeOff size={15} />}
+        
+        {/* Обновленный единый блок управления (h-10, rounded-xl) */}
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowPast(!showPast)} className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-colors" title={lang === 'ru' ? 'Показывать прошедшие' : 'Show past'}>
+            {showPast ? <Eye size={16} /> : <EyeOff size={16} />}
           </button>
-          <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10">
-            <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}><List size={15} /></button>
-            <button onClick={() => setViewMode('calendar')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'calendar' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}><LayoutGrid size={15} /></button>
+          
+          <div className="flex items-center h-10 bg-white/5 p-1 rounded-xl border border-white/10">
+            <button onClick={() => setViewMode('list')} className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}><List size={16} /></button>
+            <button onClick={() => setViewMode('calendar')} className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${viewMode === 'calendar' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}><LayoutGrid size={16} /></button>
           </div>
-          <button onClick={() => onToggleLang(lang === 'ru' ? 'en' : 'ru')} className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-gray-300 hover:text-white hover:bg-white/10 transition-colors uppercase">
+          
+          <button onClick={() => onToggleLang(lang === 'ru' ? 'en' : 'ru')} className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/10 transition-colors uppercase">
             {lang}
+          </button>
+
+          <button onClick={() => setIsMonthModalOpen(true)} className="flex items-center gap-2 h-10 px-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-white hover:bg-white/10 transition-all shadow-sm">
+            <Calendar size={16} className="text-zinc-400" />
+            <span className="hidden sm:inline">{currentMonthLabel}</span>
           </button>
         </div>
       </div>
+
       {/* Filters Row */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2.5">
@@ -79,10 +89,6 @@ export const Header = ({
               <span className="hidden sm:inline">{lang === 'ru' ? 'Зачёт' : 'Standings'}</span>
             </button>
           )}
-          <button onClick={() => setIsMonthModalOpen(true)} className="px-4 py-1.5 rounded-lg text-sm font-semibold bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors flex items-center gap-2">
-            <Calendar size={14} className="text-zinc-400" />
-            {currentMonthLabel}
-          </button>
         </div>
       </div>
     </header>
