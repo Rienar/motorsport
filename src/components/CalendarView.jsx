@@ -40,25 +40,38 @@ export const CalendarView = ({
             <div
               key={idx}
               onClick={() => hasRaces && openDayModal(day.races)}
-              className={`min-h-[60px] sm:min-h-[80px] p-1 sm:p-2 rounded-xl border flex flex-col items-center sm:items-start transition-all ${
+              className={`min-h-[60px] sm:min-h-[80px] p-1 sm:p-1.5 rounded-xl border flex flex-col items-center sm:items-start transition-all ${
                 !day.isCurrentMonth ? 'opacity-30 border-transparent bg-transparent pointer-events-none' :
                 hasRaces ? 'border-white/10 bg-white/5 cursor-pointer hover:bg-white/10 hover:border-white/20 shadow-sm' :
                 'border-transparent bg-transparent'
               } ${isToday ? 'ring-1 ring-indigo-500/50 bg-indigo-500/5' : ''}`}
             >
-              <span className={`text-xs sm:text-sm font-semibold ${isToday ? 'text-indigo-400' : hasRaces ? 'text-white' : 'text-zinc-600'}`}>
+              <span className={`text-xs sm:text-sm font-semibold mb-1 ${isToday ? 'text-indigo-400' : hasRaces ? 'text-white' : 'text-zinc-600'}`}>
                 {day.dayNumber}
               </span>
               
-              <div className="mt-auto w-full flex flex-col gap-1 sm:gap-1.5 items-center sm:items-start pt-1">
+              <div className="mt-auto w-full flex flex-col gap-1 items-center sm:items-start">
                 {day.races.map((r, i) => {
-                  const sCfg = getSeriesConfig(r.series_id || r.series);
+                  // Надежно достаем код серии для конфига
+                  const seriesCode = (typeof r.series === 'object' ? r.series?.code || r.series?.short_name : r.series)?.toLowerCase() || '';
+                  const sCfg = getSeriesConfig(seriesCode || r.series_id) || {};
                   const isLive = isRaceLive(r);
+                  
+                  // Формируем текст метки и сокращаем SUPER GT до GT
+                  let rawLabel = sCfg.shortLabel?.[lang] || sCfg.label?.[lang] || seriesCode || 'ALL';
+                  let displayLabel = String(rawLabel).toUpperCase();
+                  if (displayLabel === 'SUPER GT') displayLabel = 'GT';
+
                   return (
-                    <div key={i} className="w-full flex items-center justify-center sm:justify-start gap-1.5">
-                      <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${isLive ? 'bg-red-500 animate-ping' : sCfg.dotColor || 'bg-white'}`} />
-                      <span className={`hidden sm:block text-[9px] font-bold uppercase truncate ${isLive ? 'text-red-400' : 'text-zinc-400'}`}>
-                        {sCfg.shortLabel?.[lang] || sCfg.label?.[lang] || r.series}
+                    <div key={i} className="w-full flex items-center justify-center sm:justify-start">
+                      <span 
+                        className={`px-1.5 py-0.5 rounded-[4px] text-[9px] sm:text-[10px] font-black tracking-wider uppercase transition-all ${
+                          isLive 
+                            ? 'bg-red-600 text-white animate-pulse shadow-[0_0_8px_rgba(220,38,38,0.5)]' 
+                            : `${sCfg.bg || 'bg-white/20'} text-white`
+                        }`}
+                      >
+                        {displayLabel}
                       </span>
                     </div>
                   );
