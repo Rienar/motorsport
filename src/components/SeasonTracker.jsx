@@ -2,16 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Trophy, Clock, ChevronRight, Play } from 'lucide-react';
 import { getSeriesConfig } from '../constants/seriesConfig';
 
-const StopwatchIcon = ({ size = 20, className = "" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <circle cx="12" cy="13" r="8" />
-    <path d="M12 9v4l2 2" />
-    <path d="M12 5V3" />
-    <path d="M9 2h6" />
-    <path d="M19 7l1.5-1.5" />
-  </svg>
-);
-
 const CheckeredFlagIcon = ({ className = "" }) => (
   <svg viewBox="0 0 200 150" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} opacity="0.05">
     <path d="M10 20 Q 50 -10 90 20 T 170 20 L 170 130 Q 130 100 90 130 T 10 130 Z" fill="currentColor"/>
@@ -52,7 +42,7 @@ function LiveCountdownTimer({ nextRace, lang, compact = false }) {
     return () => clearInterval(timer);
   }, []);
 
-  let diff = nextRace ? nextRace.parsedDate.getTime() - now.getTime() : 0;
+  let diff = nextRace ? (nextRace.parsedDate || new Date(nextRace.date)).getTime() - now.getTime() : 0;
   if (diff < 0) diff = 0;
   
   const d = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -62,51 +52,50 @@ function LiveCountdownTimer({ nextRace, lang, compact = false }) {
 
   if (compact) {
     return (
-      <div className="flex items-center gap-1.5 shrink-0">
-        <div className="flex flex-col items-center bg-white/5 rounded-lg px-2 py-1 min-w-[36px]">
-          <span className="text-sm font-black text-white font-mono leading-none">{d}</span>
-          <span className="text-[7px] font-bold text-amber-400/90 uppercase mt-0.5">{lang === 'ru' ? 'Дней' : 'Days'}</span>
+      <div className="flex items-start gap-2 font-light tabular-nums shrink-0 mt-1">
+        <div className="flex flex-col items-center">
+          <span className="text-white text-2xl sm:text-3xl leading-none tracking-tight">{d}</span>
+          <span className="text-[7px] text-amber-500 font-bold uppercase tracking-[0.2em] mt-1.5 drop-shadow-[0_0_8px_rgba(245,158,11,0.2)]">{lang === 'ru' ? 'Дней' : 'Days'}</span>
         </div>
-        <span className="text-zinc-600 font-bold text-xs">:</span>
-        <div className="flex flex-col items-center bg-white/5 rounded-lg px-2 py-1 min-w-[36px]">
-          <span className="text-sm font-black text-white font-mono leading-none">{h}</span>
-          <span className="text-[7px] font-bold text-amber-400/90 uppercase mt-0.5">{lang === 'ru' ? 'Час' : 'Hr'}</span>
+        <span className="text-xl leading-none text-zinc-600 relative top-[2px]">:</span>
+        <div className="flex flex-col items-center">
+          <span className="text-white text-2xl sm:text-3xl leading-none tracking-tight">{h}</span>
+          <span className="text-[7px] text-amber-500 font-bold uppercase tracking-[0.2em] mt-1.5 drop-shadow-[0_0_8px_rgba(245,158,11,0.2)]">{lang === 'ru' ? 'Час' : 'Hr'}</span>
         </div>
-        <span className="text-zinc-600 font-bold text-xs">:</span>
-        <div className="flex flex-col items-center bg-amber-500/10 border border-amber-500/30 rounded-lg px-2 py-1 min-w-[36px] shadow-[0_0_8px_rgba(245,158,11,0.15)]">
-          <span className="text-sm font-black text-amber-400 font-mono leading-none">{m}</span>
-          <span className="text-[7px] font-bold text-amber-400 uppercase mt-0.5">{lang === 'ru' ? 'Мин' : 'Min'}</span>
+        <span className="text-xl leading-none text-zinc-600 relative top-[2px]">:</span>
+        <div className="flex flex-col items-center">
+          <span className="text-white text-2xl sm:text-3xl leading-none tracking-tight">{m}</span>
+          <span className="text-[7px] text-amber-500 font-bold uppercase tracking-[0.2em] mt-1.5 drop-shadow-[0_0_8px_rgba(245,158,11,0.2)]">{lang === 'ru' ? 'Мин' : 'Min'}</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2 sm:gap-3">
-      <div className="flex flex-col items-center bg-white/5 rounded-xl px-3 py-2 min-w-[50px]">
-        <span className="text-lg sm:text-xl font-black text-white font-mono leading-tight">{d}</span>
-        <span className="text-[9px] font-bold text-amber-400/90 tracking-widest uppercase mt-0.5">{lang === 'ru' ? 'Дней' : 'Days'}</span>
+    <div className="flex items-start gap-3 sm:gap-4 font-light tabular-nums mt-2 sm:mt-0">
+      <div className="flex flex-col items-center">
+        <span className="text-white text-4xl sm:text-[44px] leading-none tracking-tight">{d}</span>
+        <span className="text-[9px] text-amber-500 font-bold uppercase tracking-[0.2em] mt-2 drop-shadow-[0_0_8px_rgba(245,158,11,0.2)]">{lang === 'ru' ? 'Дней' : 'Days'}</span>
       </div>
-      <span className="text-zinc-600 font-bold text-lg">:</span>
-      <div className="flex flex-col items-center bg-white/5 rounded-xl px-3 py-2 min-w-[50px]">
-        <span className="text-lg sm:text-xl font-black text-white font-mono leading-tight">{h}</span>
-        <span className="text-[9px] font-bold text-amber-400/90 tracking-widest uppercase mt-0.5">{lang === 'ru' ? 'Часов' : 'Hours'}</span>
+      <span className="text-2xl sm:text-3xl leading-none text-zinc-600 relative top-[4px] sm:top-[6px]">:</span>
+      <div className="flex flex-col items-center">
+        <span className="text-white text-4xl sm:text-[44px] leading-none tracking-tight">{h}</span>
+        <span className="text-[9px] text-amber-500 font-bold uppercase tracking-[0.2em] mt-2 drop-shadow-[0_0_8px_rgba(245,158,11,0.2)]">{lang === 'ru' ? 'Часов' : 'Hours'}</span>
       </div>
-      <span className="text-zinc-600 font-bold text-lg">:</span>
-      <div className="flex flex-col items-center bg-white/5 rounded-xl px-3 py-2 min-w-[50px]">
-        <span className="text-lg sm:text-xl font-black text-white font-mono leading-tight">{m}</span>
-        <span className="text-[9px] font-bold text-amber-400/90 tracking-widest uppercase mt-0.5">{lang === 'ru' ? 'Мин' : 'Mins'}</span>
+      <span className="text-2xl sm:text-3xl leading-none text-zinc-600 relative top-[4px] sm:top-[6px]">:</span>
+      <div className="flex flex-col items-center">
+        <span className="text-white text-4xl sm:text-[44px] leading-none tracking-tight">{m}</span>
+        <span className="text-[9px] text-amber-500 font-bold uppercase tracking-[0.2em] mt-2 drop-shadow-[0_0_8px_rgba(245,158,11,0.2)]">{lang === 'ru' ? 'Мин' : 'Mins'}</span>
       </div>
-      <span className="text-zinc-600 font-bold text-lg">:</span>
-      <div className="flex flex-col items-center bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 min-w-[50px] shadow-[0_0_12px_rgba(245,158,11,0.15)]">
-        <span className="text-lg sm:text-xl font-black text-amber-400 font-mono leading-tight">{s}</span>
-        <span className="text-[9px] font-bold text-amber-400 tracking-widest uppercase mt-0.5">{lang === 'ru' ? 'Сек' : 'Secs'}</span>
+      <span className="text-2xl sm:text-3xl leading-none text-zinc-600 relative top-[4px] sm:top-[6px]">:</span>
+      <div className="flex flex-col items-center">
+        <span className="text-amber-500 text-4xl sm:text-[44px] leading-none tracking-tight drop-shadow-[0_0_8px_rgba(245,158,11,0.2)]">{s}</span>
+        <span className="text-[9px] text-amber-500/70 font-bold uppercase tracking-[0.2em] mt-2">{lang === 'ru' ? 'Сек' : 'Secs'}</span>
       </div>
     </div>
   );
 }
 
-// ---- ФУНКЦИЯ ДЛЯ ССЫЛОК НА ТРАНСЛЯЦИЮ ----
 // ЗАМЕНИТЕ ССЫЛКИ НА ВАШИ АКТУАЛЬНЫЕ
 const getWatchLink = (seriesCode) => {
   switch (seriesCode) {
@@ -134,27 +123,23 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', a
   const isCompleted = totalCount > 0 && completedCount >= totalCount;
 
   const now = Date.now();
-  // Ищем гонку, которая идет ПРЯМО СЕЙЧАС (LIVE)
+  
   const currentLiveRace = races.find(r => {
     const rTime = (r.parsedDate || new Date(r.date)).getTime();
-    return rTime <= now && rTime > now - 1000 * 60 * 180; // 3 часа с момента старта
+    return rTime <= now && rTime > now - 1000 * 60 * 180;
   });
 
-  // Ищем следующую БУДУЩУЮ гонку (строго после текущего времени)
   const allFutureRaces = races.filter(r => (r.parsedDate || new Date(r.date)).getTime() > now).sort((a, b) => (a.parsedDate || new Date(a.date)) - (b.parsedDate || new Date(b.date)));
   const nextGlobalRace = allFutureRaces[0];
-
   const nextSeriesRace = seriesRaces.find(r => (r.parsedDate || new Date(r.date)).getTime() > now);
 
   if (isAll) {
-    // ЕСЛИ ЕСТЬ ГОНКА LIVE -> Показываем двойной виджет (Трансляция + Таймер до следующей)
     if (currentLiveRace) {
       const liveSeriesCode = getSeriesCodeFromId(currentLiveRace.series_id ?? currentLiveRace.series);
       const liveCfg = getSeriesConfig(liveSeriesCode);
       const liveLabel = liveCfg.shortLabel ? (liveCfg.shortLabel[lang] || liveCfg.shortLabel) : (liveCfg.label?.[lang] || 'RACE');
       const watchUrl = getWatchLink(liveSeriesCode);
 
-      // Параметры для правой зоны (следующая гонка)
       let nextLabel = '';
       let nextRaceName = '';
       if (nextGlobalRace) {
@@ -165,7 +150,6 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', a
 
       return (
         <div className="w-full bg-surface-card border border-red-500/30 rounded-2xl p-4 sm:p-5 flex flex-row items-center justify-between shadow-[0_0_20px_rgba(220,38,38,0.15)] relative overflow-hidden h-[104px]">
-          {/* ЛЕВАЯ ЗОНА (LIVE) */}
           <div className="flex flex-col justify-center flex-1 pr-4 min-w-0 h-full relative z-10">
             <div className="flex items-center gap-2 mb-1.5">
               <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${liveCfg.badgeClass}`} style={{boxShadow: `0 0 12px rgba(255,255,255,0.2)`}}>
@@ -181,10 +165,8 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', a
             </div>
           </div>
 
-          {/* РАЗДЕЛИТЕЛЬ */}
           {nextGlobalRace && <div className="w-px h-12 bg-white/10 mx-4 shrink-0 hidden sm:block"></div>}
 
-          {/* ПРАВАЯ ЗОНА (СЛЕДУЮЩИЙ ЭТАП) */}
           {nextGlobalRace && (
             <div className="flex flex-row items-center justify-between flex-1 pl-4 min-w-0 h-full relative z-10 hidden sm:flex">
               <div className="flex flex-col justify-center min-w-0 pr-4">
@@ -203,7 +185,6 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', a
       );
     }
 
-    // СТАНДАРТНЫЙ ТРЕКЕР (Если нет LIVE)
     if (!nextGlobalRace) return null;
     
     const seriesCodeKey = getSeriesCodeFromId(nextGlobalRace.series_id ?? nextGlobalRace.series);
@@ -213,18 +194,18 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', a
     const formattedDate = nDate.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short' });
 
     return (
-      <div className="w-full bg-surface-card border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl relative overflow-hidden h-[104px]">
-        <StopwatchIcon className="absolute -left-6 top-1/2 -translate-y-1/2 w-40 h-40 text-amber-400 opacity-10 pointer-events-none transform -rotate-12 z-0" />
+      <div className="w-full bg-surface-card border border-white/5 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 shadow-xl relative overflow-hidden">
+        <div className="absolute -left-16 -top-16 w-64 h-64 rounded-full border-[30px] border-amber-500/5 pointer-events-none"></div>
         
         <div className="flex items-center gap-3.5 w-full sm:w-auto min-w-0 relative z-10">
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${nextCfg.badgeClass}`} style={{boxShadow: '0 0 10px rgba(255,255,255,0.15)'}}>
+          <div className="flex flex-col gap-2 min-w-0">
+            <div className="flex items-center gap-3">
+              <span className={`px-2 py-0.5 rounded text-[10px] sm:text-xs font-black uppercase tracking-wider ${nextCfg.badgeClass}`} style={{boxShadow: '0 0 10px rgba(255,255,255,0.15)'}}>
                 {nextLabel}
               </span>
-              <span className="text-xs font-semibold text-zinc-400">{formattedDate}</span>
+              <span className="text-xs sm:text-sm font-medium text-zinc-400">{formattedDate}</span>
             </div>
-            <h4 className="text-lg sm:text-2xl font-bold text-white tracking-tight truncate">
+            <h4 className="text-xl sm:text-3xl font-bold text-white tracking-tight truncate">
               {nextGlobalRace.name}
             </h4>
           </div>
@@ -236,7 +217,6 @@ export const SeasonTracker = ({ activeSeries = 'ALL', races = [], lang = 'ru', a
     );
   }
 
-  // --- ЛОГИКА ДЛЯ КОНКРЕТНОЙ СЕРИИ (Вкладка F1 / WEC / и т.д.) ---
   let watermarkColor = 'text-purple-500';
   if (sCfg.code === 'f1') watermarkColor = 'text-red-500';
   if (sCfg.code === 'dtm') watermarkColor = 'text-yellow-500';
