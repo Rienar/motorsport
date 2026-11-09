@@ -1,18 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
 
-// Именованные компоненты
 import { Header } from './components/Header';
 import { CalendarView } from './components/CalendarView';
 import { SeasonTracker } from './components/SeasonTracker';
 import { SeasonModal } from './components/SeasonModal';
 import { StandingsModal } from './components/StandingsModal';
 
-// Экспорты по умолчанию
 import RaceModal from './components/RaceModal';
 import RaceCard from './components/RaceCard';
 
-// Сервисы, хуки и константы
 import { getRaces, getSeries } from './services/queries';
 import { translations } from './constants/translations';
 
@@ -128,6 +125,58 @@ export default function App() {
     });
   }, [races, selectedSeries, selectedYear, selectedMonth, showPast]);
 
+  // Вычисляем месяцы, в которых РЕАЛЬНО есть гонки по выбранным фильтрам
+  const activeMonthsInYear = useMemo(() => {
+    const activeSet = new Set();
+    races.forEach((race) => {
+      const seriesCode = (typeof race.series === 'object' ? race.series?.code || race.series?.short_name : race.series)?.toLowerCase() || '';
+      const filterVal = selectedSeries.toLowerCase();
+      const matchesSeries = selectedSeries === 'ALL' || seriesCode === filterVal;
+
+      const raceDate = race.parsedDate || new Date(race.date);
+      const raceYear = Number(race.season) || raceDate.getFullYear();
+      const matchesYear = raceYear === Number(selectedYear);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const isPast = raceDate < today;
+      const matchesPast = showPast ? true : !isPast;
+
+      if (matchesSeries && matchesYear && matchesPast) {
+        activeSet.add(raceDate.getMonth());
+      }
+    });
+    return Array.from(activeSet).sort((a, b) => a - b);
+  }, [races, selectedSeries, selectedYear, showPast]);
+
+  // Если текущий месяц календаря пустой (нет гонок), прыгаем на первый доступный
+  useEffect(() => {
+    if (activeMonthsInYear.length > 0 && !activeMonthsInYear.includes(calMonth)) {
+      setCalMonth(activeMonthsInYear[0]);
+    }
+  }, [activeMonthsInYear, calMonth]);
+
+  // Навигация по КАЛЕНДАРЮ (только по активным месяцам)
+  const handlePrevMonth = () => {
+    if (activeMonthsInYear.length === 0) return;
+    const currentIndex = activeMonthsInYear.indexOf(calMonth);
+    if (currentIndex > 0) {
+      setCalMonth(activeMonthsInYear[currentIndex - 1]);
+    } else {
+      setCalMonth(activeMonthsInYear[activeMonthsInYear.length - 1]);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (activeMonthsInYear.length === 0) return;
+    const currentIndex = activeMonthsInYear.indexOf(calMonth);
+    if (currentIndex !== -1 && currentIndex < activeMonthsInYear.length - 1) {
+      setCalMonth(activeMonthsInYear[currentIndex + 1]);
+    } else {
+      setCalMonth(activeMonthsInYear[0]);
+    }
+  };
+
   const calendarDays = useMemo(() => {
     const year = Number(selectedYear);
     const month = calMonth;
@@ -147,6 +196,7 @@ export default function App() {
 
     for (let i = 1; i <= lastDay.getDate(); i++) {
       const d = new Date(year, month, i);
+      // Для календаря берем гонки конкретного дня из уже отфильтрованного списка
       const dayRaces = filteredRaces.filter(r => {
         const rDate = r.parsedDate || new Date(r.date);
         return rDate.getFullYear() === year && rDate.getMonth() === month && rDate.getDate() === i;
@@ -233,25 +283,30 @@ export default function App() {
                 </div>
               )
             ) : (
-              <CalendarView
-                activeYear={selectedYear}
-                calMonth={calMonth}
-                setCalMonth={setCalMonth}
-                availableMonths={availableMonthsCal}
-                handlePrevMonth={() => setCalMonth(prev => (prev === 0 ? 11 : prev - 1))}
-                handleNextMonth={() => setCalMonth(prev => (prev === 11 ? 0 : prev + 1))}
-                calendarDays={calendarDays}
-                isRaceLive={isRaceLive}
-                openDayModal={(racesOnDay) => { if (racesOnDay && racesOnDay[0]) setSelectedRace(racesOnDay[0]); }}
-                lang={lang}
-                t={t}
-              />
+              activeMonthsInYear.length === 0 ? (
+                 <div className="flex items-center justify-center h-64 text-zinc-500 text-sm">
+                  {lang === 'ru' ? 'Нет гонок по выбранным критериям.' : 'No races match the selected criteria.'}
+                </div>
+              ) : (
+                <CalendarView
+                  activeYear={selectedYear}
+                  calMonth={calMonth}
+                  setCalMonth={setCalMonth}
+                  availableMonths={availableMonthsCal}
+                  handlePrevMonth={handlePrevMonth}
+                  handleNextMonth={handleNextMonth}
+                  calendarDays={calendarDays}
+                  isRaceLive={isRaceLive}
+                  openDayModal={(racesOnDay) => { if (racesOnDay && racesOnDay[0]) setSelectedRace(racesOnDay[0]); }}
+                  lang={lang}
+                  t={t}
+                />
+              )
             )}
           </div>
         )}
       </main>
 
-      {/* Модальное Окно Месяцев */}
       {isMonthModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#121216] border border-white/10 w-full max-w-sm rounded-3xl p-6 relative shadow-2xl">
@@ -314,6 +369,7 @@ export default function App() {
         onClose={() => setIsStandingsModalOpen(false)} 
         lang={lang}
         year={selectedYear}
+        allRaces={races}
       />
     </div>
   );
