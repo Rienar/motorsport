@@ -1,6 +1,23 @@
 import { supabase } from './supabase';
 
-export async function getRaces() {
+// НОВОЕ: Загрузка списка уникальных годов, чтобы не тянуть всю базу
+export async function getAvailableYears() {
+  const { data, error } = await supabase
+    .from('races')
+    .select('season');
+
+  if (error) {
+    console.error('Error fetching available years:', error);
+    return [String(new Date().getFullYear())];
+  }
+
+  const years = new Set(data.map(item => String(item.season)));
+  years.add(String(new Date().getFullYear())); // фолбэк на текущий год
+  return Array.from(years).sort();
+}
+
+// НОВОЕ: Целевая загрузка гонок только для конкретного года
+export async function getRacesByYear(year) {
   const { data, error } = await supabase
     .from('races')
     .select(`
@@ -8,15 +25,17 @@ export async function getRaces() {
       circuits (*),
       series:series_id (*)
     `)
+    .eq('season', Number(year))
     .order('date', { ascending: true });
 
   if (error) {
-    console.error('Error fetching races:', error);
+    console.error(`Error fetching races for ${year}:`, error);
     throw error;
   }
   return data || [];
 }
 
+// БЕЗ ИЗМЕНЕНИЙ
 export async function getSeries() {
   const { data, error } = await supabase
     .from('series')
@@ -30,6 +49,7 @@ export async function getSeries() {
   return data || [];
 }
 
+// БЕЗ ИЗМЕНЕНИЙ
 export async function getDriverResults(raceId) {
   const { data, error } = await supabase
     .from('driver_results')
@@ -44,6 +64,7 @@ export async function getDriverResults(raceId) {
   return data || [];
 }
 
+// БЕЗ ИЗМЕНЕНИЙ
 export async function getTeamResults(raceId) {
   const { data, error } = await supabase
     .from('team_results')
@@ -58,6 +79,7 @@ export async function getTeamResults(raceId) {
   return data || [];
 }
 
+// БЕЗ ИЗМЕНЕНИЙ
 export async function getSeasonResults(raceIds) {
   if (!raceIds || raceIds.length === 0) return { drivers: [], teams: [] };
   const [drivers, teams] = await Promise.all([
@@ -67,6 +89,7 @@ export async function getSeasonResults(raceIds) {
   return { drivers: drivers.data || [], teams: teams.data || [] };
 }
 
+// БЕЗ ИЗМЕНЕНИЙ
 export async function getF1Standings(year) {
   try {
     const targetYear = String(year);
