@@ -10,7 +10,7 @@ import { StandingsModal } from './components/StandingsModal';
 import RaceModal from './components/RaceModal';
 import RaceCard from './components/RaceCard';
 
-// ОБНОВЛЕНО: Импорты новых методов кэшированной загрузки
+// Импорты методов кэшированной загрузки
 import { getAvailableYears, getRacesByYear, getSeries } from './services/queries';
 import { translations } from './constants/translations';
 
@@ -18,13 +18,14 @@ const EN_MONTHS = ['Months', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'A
 const RU_MONTHS = ['Месяцы', 'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
 export default function App() {
-  // ОБНОВЛЕНО: Используем кэш вместо массива всех гонок
+  // Кэш и метаданные
   const [racesCache, setRacesCache] = useState({});
   const [availableYears, setAvailableYears] = useState([]);
   const [seriesList, setSeriesList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Стейты интерфейса и фильтров
   const [lang, setLang] = useState('ru');
   const [selectedSeries, setSelectedSeries] = useState('ALL');
   
@@ -33,10 +34,10 @@ export default function App() {
   const [selectedMonth, setSelectedMonth] = useState(0); 
   const [isMonthModalOpen, setIsMonthModalOpen] = useState(false);
 
-  const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [viewMode, setViewMode] = useState('list');
   const [showPast, setShowPast] = useState(false);
 
+  // Стейты модалок
   const [selectedRace, setSelectedRace] = useState(null);
   const [isSeasonModalOpen, setIsSeasonModalOpen] = useState(false);
   const [isStandingsModalOpen, setIsStandingsModalOpen] = useState(false);
@@ -50,7 +51,7 @@ export default function App() {
     return nowMs >= raceTime && nowMs <= raceTime + 1000 * 60 * 180;
   };
 
-  // ОБНОВЛЕНО: Загрузка мета-данных при старте
+  // 1. Загрузка мета-данных при старте
   useEffect(() => {
     const initApp = async () => {
       try {
@@ -76,10 +77,9 @@ export default function App() {
     initApp();
   }, []);
 
-  // ОБНОВЛЕНО: Ленивая загрузка гонок при смене года
+  // 2. Ленивая загрузка гонок при смене года
   useEffect(() => {
     const fetchYearRaces = async () => {
-      // Если данные уже есть в кэше — берем их моментально
       if (racesCache[selectedYear]) {
         setIsLoading(false);
         return;
@@ -99,7 +99,6 @@ export default function App() {
           return code !== 'imsa';
         });
 
-        // Сохраняем в кэш
         setRacesCache(prev => ({
           ...prev,
           [selectedYear]: cleanRaces
@@ -115,7 +114,7 @@ export default function App() {
     fetchYearRaces();
   }, [selectedYear, racesCache]);
 
-  // ОБНОВЛЕНО: Базовый массив гонок для текущего отображения
+  // Базовый массив гонок текущего года
   const activeYearRaces = racesCache[selectedYear] || [];
 
   const nextRace = useMemo(() => {
@@ -126,6 +125,7 @@ export default function App() {
     return futureRaces.length > 0 ? futureRaces[0] : null;
   }, [activeYearRaces]);
 
+  // Отфильтрованные гонки (используются только для списка, не для календаря)
   const filteredRaces = useMemo(() => {
     return activeYearRaces.filter((race) => {
       const seriesCode = (typeof race.series === 'object' ? race.series?.code || race.series?.short_name : race.series)?.toLowerCase() || '';
@@ -147,93 +147,6 @@ export default function App() {
       return matchesSeries && matchesYear && matchesMonth && matchesPast;
     });
   }, [activeYearRaces, selectedSeries, selectedYear, selectedMonth, showPast]);
-
-  const activeMonthsInYear = useMemo(() => {
-    const activeSet = new Set();
-    activeYearRaces.forEach((race) => {
-      const seriesCode = (typeof race.series === 'object' ? race.series?.code || race.series?.short_name : race.series)?.toLowerCase() || '';
-      const filterVal = selectedSeries.toLowerCase();
-      const matchesSeries = selectedSeries === 'ALL' || seriesCode === filterVal;
-
-      const raceDate = race.parsedDate || new Date(race.date);
-      const raceYear = Number(race.season) || raceDate.getFullYear();
-      const matchesYear = raceYear === Number(selectedYear);
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const isPast = raceDate < today;
-      const matchesPast = showPast ? true : !isPast;
-
-      if (matchesSeries && matchesYear && matchesPast) {
-        activeSet.add(raceDate.getMonth());
-      }
-    });
-    return Array.from(activeSet).sort((a, b) => a - b);
-  }, [activeYearRaces, selectedSeries, selectedYear, showPast]);
-
-  useEffect(() => {
-    if (activeMonthsInYear.length > 0 && !activeMonthsInYear.includes(calMonth)) {
-      setCalMonth(activeMonthsInYear[0]);
-    }
-  }, [activeMonthsInYear, calMonth]);
-
-  const handlePrevMonth = () => {
-    if (activeMonthsInYear.length === 0) return;
-    const currentIndex = activeMonthsInYear.indexOf(calMonth);
-    if (currentIndex > 0) {
-      setCalMonth(activeMonthsInYear[currentIndex - 1]);
-    } else {
-      setCalMonth(activeMonthsInYear[activeMonthsInYear.length - 1]);
-    }
-  };
-
-  const handleNextMonth = () => {
-    if (activeMonthsInYear.length === 0) return;
-    const currentIndex = activeMonthsInYear.indexOf(calMonth);
-    if (currentIndex !== -1 && currentIndex < activeMonthsInYear.length - 1) {
-      setCalMonth(activeMonthsInYear[currentIndex + 1]);
-    } else {
-      setCalMonth(activeMonthsInYear[0]);
-    }
-  };
-
-  const calendarDays = useMemo(() => {
-    const year = Number(selectedYear);
-    const month = calMonth;
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-
-    let startDayOfWeek = firstDay.getDay() - 1;
-    if (startDayOfWeek === -1) startDayOfWeek = 6;
-
-    const days = [];
-    const prevMonthLastDay = new Date(year, month, 0).getDate();
-    
-    for (let i = startDayOfWeek - 1; i >= 0; i--) {
-      const d = new Date(year, month - 1, prevMonthLastDay - i);
-      days.push({ date: d, dayNumber: d.getDate(), isCurrentMonth: false, races: [] });
-    }
-
-    for (let i = 1; i <= lastDay.getDate(); i++) {
-      const d = new Date(year, month, i);
-      const dayRaces = filteredRaces.filter(r => {
-        const rDate = r.parsedDate || new Date(r.date);
-        return rDate.getFullYear() === year && rDate.getMonth() === month && rDate.getDate() === i;
-      });
-      days.push({ date: d, dayNumber: i, isCurrentMonth: true, races: dayRaces });
-    }
-
-    const remainingDays = 7 - (days.length % 7);
-    if (remainingDays < 7) {
-      for (let i = 1; i <= remainingDays; i++) {
-        const d = new Date(year, month + 1, i);
-        days.push({ date: d, dayNumber: i, isCurrentMonth: false, races: [] });
-      }
-    }
-    return days;
-  }, [selectedYear, calMonth, filteredRaces]);
-
-  const availableMonthsCal = useMemo(() => Array.from({ length: 12 }, (_, i) => i), []);
 
   return (
     <div className="min-h-screen bg-[#070709] text-zinc-100 flex flex-col font-sans selection:bg-purple-500/30">
@@ -264,7 +177,6 @@ export default function App() {
           <div className="flex flex-col items-center justify-center h-64 text-red-400 space-y-2">
             <p className="font-semibold">{lang === 'ru' ? 'Ошибка загрузки' : 'Failed to load'}</p>
             <p className="text-xs text-zinc-500">{error.message}</p>
-            {/* Вместо вызова fetch повторно дергаем стейт */}
             <button onClick={() => setRacesCache({})} className="mt-2 px-3 py-1.5 bg-[#0e1015] border border-white/10 hover:bg-zinc-800 text-xs text-zinc-200 rounded-lg transition-colors">
               {lang === 'ru' ? 'Повторить' : 'Retry'}
             </button>
@@ -303,30 +215,23 @@ export default function App() {
                 </div>
               )
             ) : (
-              activeMonthsInYear.length === 0 ? (
-                 <div className="flex items-center justify-center h-64 text-zinc-500 text-sm">
-                  {lang === 'ru' ? 'Нет гонок по выбранным критериям.' : 'No races match the selected criteria.'}
-                </div>
-              ) : (
-                <CalendarView
-                  activeYear={selectedYear}
-                  calMonth={calMonth}
-                  setCalMonth={setCalMonth}
-                  availableMonths={availableMonthsCal}
-                  handlePrevMonth={handlePrevMonth}
-                  handleNextMonth={handleNextMonth}
-                  calendarDays={calendarDays}
-                  isRaceLive={isRaceLive}
-                  openDayModal={(racesOnDay) => { if (racesOnDay && racesOnDay[0]) setSelectedRace(racesOnDay[0]); }}
-                  lang={lang}
-                  t={t}
-                />
-              )
+              // Вызов нового CalendarView с корректными пропсами
+              <CalendarView
+                activeYear={selectedYear}
+                races={activeYearRaces}
+                activeSeries={selectedSeries}
+                showPast={showPast}
+                isRaceLive={isRaceLive}
+                openDayModal={(racesOnDay) => { if (racesOnDay && racesOnDay[0]) setSelectedRace(racesOnDay[0]); }}
+                lang={lang}
+                t={t}
+              />
             )}
           </div>
         )}
       </main>
 
+      {/* Инлайновая модалка месяцев (если вы её не вынесли в отдельный компонент) */}
       {isMonthModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#121216] border border-white/10 w-full max-w-sm rounded-3xl p-6 relative shadow-2xl">
