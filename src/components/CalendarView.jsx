@@ -1,12 +1,77 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getSeriesConfig } from '../constants/seriesConfig';
 
 export const CalendarView = ({
-  activeYear, calMonth, setCalMonth,
-  availableMonths, handlePrevMonth, handleNextMonth,
-  calendarDays, isRaceLive, openDayModal, lang, t
+  activeYear, activeMonthsInYear, filteredRaces,
+  isRaceLive, openDayModal, lang, t
 }) => {
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+
+  // Синхронизация текущего месяца календаря с доступными месяцами
+  useEffect(() => {
+    if (activeMonthsInYear.length > 0 && !activeMonthsInYear.includes(calMonth)) {
+      setCalMonth(activeMonthsInYear[0]);
+    }
+  }, [activeMonthsInYear, calMonth]);
+
+  const handlePrevMonth = () => {
+    if (activeMonthsInYear.length === 0) return;
+    const currentIndex = activeMonthsInYear.indexOf(calMonth);
+    if (currentIndex > 0) {
+      setCalMonth(activeMonthsInYear[currentIndex - 1]);
+    } else {
+      setCalMonth(activeMonthsInYear[activeMonthsInYear.length - 1]);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (activeMonthsInYear.length === 0) return;
+    const currentIndex = activeMonthsInYear.indexOf(calMonth);
+    if (currentIndex !== -1 && currentIndex < activeMonthsInYear.length - 1) {
+      setCalMonth(activeMonthsInYear[currentIndex + 1]);
+    } else {
+      setCalMonth(activeMonthsInYear[0]);
+    }
+  };
+
+  // Расчет сетки дней
+  const calendarDays = useMemo(() => {
+    const year = Number(activeYear);
+    const month = calMonth;
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    let startDayOfWeek = firstDay.getDay() - 1;
+    if (startDayOfWeek === -1) startDayOfWeek = 6;
+
+    const days = [];
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    
+    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+      const d = new Date(year, month - 1, prevMonthLastDay - i);
+      days.push({ date: d, dayNumber: d.getDate(), isCurrentMonth: false, races: [] });
+    }
+
+    for (let i = 1; i <= lastDay.getDate(); i++) {
+      const d = new Date(year, month, i);
+      const dayRaces = filteredRaces.filter(r => {
+        const rDate = r.parsedDate || new Date(r.date);
+        return rDate.getFullYear() === year && rDate.getMonth() === month && rDate.getDate() === i;
+      });
+      days.push({ date: d, dayNumber: i, isCurrentMonth: true, races: dayRaces });
+    }
+
+    const remainingDays = 7 - (days.length % 7);
+    if (remainingDays < 7) {
+      for (let i = 1; i <= remainingDays; i++) {
+        const d = new Date(year, month + 1, i);
+        days.push({ date: d, dayNumber: i, isCurrentMonth: false, races: [] });
+      }
+    }
+    return days;
+  }, [activeYear, calMonth, filteredRaces]);
+
   const monthNames = lang === 'ru' ? t.months : t.months;
   const weekDays = t.weekDays || [];
 
