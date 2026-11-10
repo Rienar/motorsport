@@ -1,20 +1,26 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { X } from 'lucide-react';
 
 import { Header } from './components/Header';
 import { CalendarView } from './components/CalendarView';
 import { SeasonTracker } from './components/SeasonTracker';
 import { SeasonModal } from './components/SeasonModal';
 import { StandingsModal } from './components/StandingsModal';
-import { MonthModal } from './components/MonthModal'; // <-- ДОБАВЛЕН ИМПОРТ
 
 import RaceModal from './components/RaceModal';
 import RaceCard from './components/RaceCard';
 
-import { getRaces, getSeries } from './services/queries';
+// ОБНОВЛЕНО: Импорты новых методов кэшированной загрузки
+import { getAvailableYears, getRacesByYear, getSeries } from './services/queries';
 import { translations } from './constants/translations';
 
+const EN_MONTHS = ['Months', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const RU_MONTHS = ['Месяцы', 'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+
 export default function App() {
-  const [races, setRaces] = useState([]);
+  // ОБНОВЛЕНО: Используем кэш вместо массива всех гонок
+  const [racesCache, setRacesCache] = useState({});
+  const [availableYears, setAvailableYears] = useState([]);
   const [seriesList, setSeriesList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,6 +33,7 @@ export default function App() {
   const [selectedMonth, setSelectedMonth] = useState(0); 
   const [isMonthModalOpen, setIsMonthModalOpen] = useState(false);
 
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [viewMode, setViewMode] = useState('list');
   const [showPast, setShowPast] = useState(false);
 
@@ -43,64 +50,84 @@ export default function App() {
     return nowMs >= raceTime && nowMs <= raceTime + 1000 * 60 * 180;
   };
 
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const [racesData, seriesData] = await Promise.all([
-        getRaces(),
-        getSeries(),
-      ]);
-
-      const formattedRaces = (racesData || []).map(r => ({
-        ...r,
-        parsedDate: r.date ? new Date(r.date) : new Date()
-      }));
-
-      const cleanRaces = formattedRaces.filter(r => {
-        const code = (typeof r.series === 'object' ? r.series?.code : r.series)?.toLowerCase();
-        return code !== 'imsa';
-      });
-
-      const cleanSeries = (seriesData || []).filter(s => {
-        const code = (s.code || s.short_name || '').toLowerCase();
-        return code !== 'imsa';
-      });
-
-      setRaces(cleanRaces);
-      setSeriesList(cleanSeries);
-    } catch (err) {
-      console.error('Ошибка загрузки данных:', err);
-      setError(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // ОБНОВЛЕНО: Загрузка мета-данных при старте
   useEffect(() => {
-    fetchData();
+    const initApp = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const [seriesData, yearsData] = await Promise.all([
+          getSeries(),
+          getAvailableYears(),
+        ]);
+
+        const cleanSeries = (seriesData || []).filter(s => {
+          const code = (s.code || s.short_name || '').toLowerCase();
+          return code !== 'imsa';
+        });
+
+        setSeriesList(cleanSeries);
+        setAvailableYears(yearsData);
+      } catch (err) {
+        console.error('Ошибка инициализации:', err);
+        setError(err);
+      }
+    };
+    initApp();
   }, []);
 
-  const availableYears = useMemo(() => {
-    const set = new Set();
-    set.add(currentYearStr);
-    races.forEach(r => {
-      const yr = r.season ? String(r.season) : (r.date ? r.date.substring(0, 4) : null);
-      if (yr) set.add(yr);
-    });
-    return Array.from(set).sort();
-  }, [races, currentYearStr]);
+  // ОБНОВЛЕНО: Ленивая загрузка гонок при смене года
+  useEffect(() => {
+    const fetchYearRaces = async () => {
+      // Если данные уже есть в кэше — берем их моментально
+      if (racesCache[selectedYear]) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const racesData = await getRacesByYear(selectedYear);
+
+        const formattedRaces = (racesData || []).map(r => ({
+          ...r,
+          parsedDate: r.date ? new Date(r.date) : new Date()
+        }));
+
+        const cleanRaces = formattedRaces.filter(r => {
+          const code = (typeof r.series === 'object' ? r.series?.code : r.series)?.toLowerCase();
+          return code !== 'imsa';
+        });
+
+        // Сохраняем в кэш
+        setRacesCache(prev => ({
+          ...prev,
+          [selectedYear]: cleanRaces
+        }));
+      } catch (err) {
+        console.error('Ошибка загрузки гонок:', err);
+        setError(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchYearRaces();
+  }, [selectedYear, racesCache]);
+
+  // ОБНОВЛЕНО: Базовый массив гонок для текущего отображения
+  const activeYearRaces = racesCache[selectedYear] || [];
 
   const nextRace = useMemo(() => {
     const currentMs = Date.now();
-    const futureRaces = races
+    const futureRaces = activeYearRaces
       .filter(r => (r.parsedDate || new Date(r.date)).getTime() + 1000 * 60 * 180 > currentMs)
       .sort((a,b) => (a.parsedDate || new Date(a.date)) - (b.parsedDate || new Date(b.date)));
     return futureRaces.length > 0 ? futureRaces[0] : null;
-  }, [races]);
+  }, [activeYearRaces]);
 
   const filteredRaces = useMemo(() => {
-    return races.filter((race) => {
+    return activeYearRaces.filter((race) => {
       const seriesCode = (typeof race.series === 'object' ? race.series?.code || race.series?.short_name : race.series)?.toLowerCase() || '';
       const filterVal = selectedSeries.toLowerCase();
       const matchesSeries = selectedSeries === 'ALL' || seriesCode === filterVal;
@@ -119,12 +146,11 @@ export default function App() {
 
       return matchesSeries && matchesYear && matchesMonth && matchesPast;
     });
-  }, [races, selectedSeries, selectedYear, selectedMonth, showPast]);
+  }, [activeYearRaces, selectedSeries, selectedYear, selectedMonth, showPast]);
 
-  // Вычисляем месяцы, в которых РЕАЛЬНО есть гонки по выбранным фильтрам
   const activeMonthsInYear = useMemo(() => {
     const activeSet = new Set();
-    races.forEach((race) => {
+    activeYearRaces.forEach((race) => {
       const seriesCode = (typeof race.series === 'object' ? race.series?.code || race.series?.short_name : race.series)?.toLowerCase() || '';
       const filterVal = selectedSeries.toLowerCase();
       const matchesSeries = selectedSeries === 'ALL' || seriesCode === filterVal;
@@ -143,7 +169,71 @@ export default function App() {
       }
     });
     return Array.from(activeSet).sort((a, b) => a - b);
-  }, [races, selectedSeries, selectedYear, showPast]);
+  }, [activeYearRaces, selectedSeries, selectedYear, showPast]);
+
+  useEffect(() => {
+    if (activeMonthsInYear.length > 0 && !activeMonthsInYear.includes(calMonth)) {
+      setCalMonth(activeMonthsInYear[0]);
+    }
+  }, [activeMonthsInYear, calMonth]);
+
+  const handlePrevMonth = () => {
+    if (activeMonthsInYear.length === 0) return;
+    const currentIndex = activeMonthsInYear.indexOf(calMonth);
+    if (currentIndex > 0) {
+      setCalMonth(activeMonthsInYear[currentIndex - 1]);
+    } else {
+      setCalMonth(activeMonthsInYear[activeMonthsInYear.length - 1]);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (activeMonthsInYear.length === 0) return;
+    const currentIndex = activeMonthsInYear.indexOf(calMonth);
+    if (currentIndex !== -1 && currentIndex < activeMonthsInYear.length - 1) {
+      setCalMonth(activeMonthsInYear[currentIndex + 1]);
+    } else {
+      setCalMonth(activeMonthsInYear[0]);
+    }
+  };
+
+  const calendarDays = useMemo(() => {
+    const year = Number(selectedYear);
+    const month = calMonth;
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    let startDayOfWeek = firstDay.getDay() - 1;
+    if (startDayOfWeek === -1) startDayOfWeek = 6;
+
+    const days = [];
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    
+    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+      const d = new Date(year, month - 1, prevMonthLastDay - i);
+      days.push({ date: d, dayNumber: d.getDate(), isCurrentMonth: false, races: [] });
+    }
+
+    for (let i = 1; i <= lastDay.getDate(); i++) {
+      const d = new Date(year, month, i);
+      const dayRaces = filteredRaces.filter(r => {
+        const rDate = r.parsedDate || new Date(r.date);
+        return rDate.getFullYear() === year && rDate.getMonth() === month && rDate.getDate() === i;
+      });
+      days.push({ date: d, dayNumber: i, isCurrentMonth: true, races: dayRaces });
+    }
+
+    const remainingDays = 7 - (days.length % 7);
+    if (remainingDays < 7) {
+      for (let i = 1; i <= remainingDays; i++) {
+        const d = new Date(year, month + 1, i);
+        days.push({ date: d, dayNumber: i, isCurrentMonth: false, races: [] });
+      }
+    }
+    return days;
+  }, [selectedYear, calMonth, filteredRaces]);
+
+  const availableMonthsCal = useMemo(() => Array.from({ length: 12 }, (_, i) => i), []);
 
   return (
     <div className="min-h-screen bg-[#070709] text-zinc-100 flex flex-col font-sans selection:bg-purple-500/30">
@@ -174,7 +264,8 @@ export default function App() {
           <div className="flex flex-col items-center justify-center h-64 text-red-400 space-y-2">
             <p className="font-semibold">{lang === 'ru' ? 'Ошибка загрузки' : 'Failed to load'}</p>
             <p className="text-xs text-zinc-500">{error.message}</p>
-            <button onClick={fetchData} className="mt-2 px-3 py-1.5 bg-[#0e1015] border border-white/10 hover:bg-zinc-800 text-xs text-zinc-200 rounded-lg transition-colors">
+            {/* Вместо вызова fetch повторно дергаем стейт */}
+            <button onClick={() => setRacesCache({})} className="mt-2 px-3 py-1.5 bg-[#0e1015] border border-white/10 hover:bg-zinc-800 text-xs text-zinc-200 rounded-lg transition-colors">
               {lang === 'ru' ? 'Повторить' : 'Retry'}
             </button>
           </div>
@@ -182,7 +273,7 @@ export default function App() {
           <div className="flex flex-col gap-4">
             
             <SeasonTracker
-              races={races}
+              races={activeYearRaces}
               activeSeries={selectedSeries}
               activeYear={selectedYear}
               lang={lang}
@@ -219,8 +310,12 @@ export default function App() {
               ) : (
                 <CalendarView
                   activeYear={selectedYear}
-                  activeMonthsInYear={activeMonthsInYear}
-                  filteredRaces={filteredRaces}
+                  calMonth={calMonth}
+                  setCalMonth={setCalMonth}
+                  availableMonths={availableMonthsCal}
+                  handlePrevMonth={handlePrevMonth}
+                  handleNextMonth={handleNextMonth}
+                  calendarDays={calendarDays}
                   isRaceLive={isRaceLive}
                   openDayModal={(racesOnDay) => { if (racesOnDay && racesOnDay[0]) setSelectedRace(racesOnDay[0]); }}
                   lang={lang}
@@ -232,20 +327,48 @@ export default function App() {
         )}
       </main>
 
-      {/* ИНКАПСУЛИРОВАННОЕ МОДАЛЬНОЕ ОКНО */}
-      <MonthModal
-        isOpen={isMonthModalOpen}
-        onClose={() => setIsMonthModalOpen(false)}
-        selectedMonth={selectedMonth}
-        setSelectedMonth={setSelectedMonth}
-        lang={lang}
-      />
+      {isMonthModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#121216] border border-white/10 w-full max-w-sm rounded-3xl p-6 relative shadow-2xl">
+            <button onClick={() => setIsMonthModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 p-1.5 rounded-full transition-colors">
+              <X size={18} />
+            </button>
+            <h3 className="text-lg font-bold text-white mb-4">{lang === 'ru' ? 'Выберите месяц' : 'Select Month'}</h3>
+            
+            <button 
+              onClick={() => { setSelectedMonth(0); setIsMonthModalOpen(false); }}
+              className={`w-full py-2.5 rounded-xl text-sm font-bold mb-3 transition-colors ${selectedMonth === 0 ? 'bg-indigo-600 text-white' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}
+            >
+              {lang === 'ru' ? 'Все месяцы' : 'All Months'}
+            </button>
+
+            <div className="grid grid-cols-3 gap-2">
+              {(lang === 'ru' ? RU_MONTHS : EN_MONTHS).slice(1).map((m, idx) => {
+                const monthIndex = idx + 1;
+                return (
+                  <button
+                    key={m}
+                    onClick={() => { setSelectedMonth(monthIndex); setIsMonthModalOpen(false); }}
+                    className={`py-2 rounded-xl text-sm font-bold transition-all ${
+                      selectedMonth === monthIndex 
+                        ? 'bg-indigo-600 text-white shadow-[0_0_12px_rgba(99,102,241,0.4)]' 
+                        : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedRace && (
         <RaceModal
           race={selectedRace}
           onClose={() => setSelectedRace(null)}
-          allRaces={races}
+          allRaces={activeYearRaces}
           lang={lang}
         />
       )}
@@ -255,7 +378,7 @@ export default function App() {
           isOpen={isSeasonModalOpen}
           onClose={() => setIsSeasonModalOpen(false)}
           year={selectedYear}
-          allRaces={races}
+          allRaces={activeYearRaces}
           lang={lang}
           t={t}
         />
@@ -266,7 +389,7 @@ export default function App() {
         onClose={() => setIsStandingsModalOpen(false)} 
         lang={lang}
         year={selectedYear}
-        allRaces={races}
+        allRaces={activeYearRaces}
       />
     </div>
   );
