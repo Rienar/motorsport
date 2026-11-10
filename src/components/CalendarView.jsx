@@ -2,19 +2,34 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getSeriesConfig } from '../constants/seriesConfig';
 
-export const CalendarView = ({
-  activeYear, activeMonthsInYear, filteredRaces,
-  isRaceLive, openDayModal, lang, t
-}) => {
-  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+// Фолбэки на случай, если объект локализации t еще не загрузился
+const FALLBACK_RU_MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+const FALLBACK_EN_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const FALLBACK_WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
-  // Синхронизация текущего месяца календаря с доступными месяцами
+export const CalendarView = ({
+  activeYear,
+  activeMonthsInYear = [],
+  filteredRaces = [],
+  isRaceLive,
+  openDayModal,
+  lang = 'ru',
+  t = {}
+}) => {
+  // 1. Локальное состояние: текущий просматриваемый месяц календаря
+  const [calMonth, setCalMonth] = useState(() => {
+    const currentM = new Date().getMonth();
+    return activeMonthsInYear.includes(currentM) ? currentM : (activeMonthsInYear[0] ?? currentM);
+  });
+
+  // 2. Синхронизация: если фильтры в App.jsx отсекли текущий месяц, перепрыгиваем на доступный
   useEffect(() => {
     if (activeMonthsInYear.length > 0 && !activeMonthsInYear.includes(calMonth)) {
       setCalMonth(activeMonthsInYear[0]);
     }
   }, [activeMonthsInYear, calMonth]);
 
+  // 3. Навигация стрелками только по "активным" месяцам, в которых есть гонки
   const handlePrevMonth = () => {
     if (activeMonthsInYear.length === 0) return;
     const currentIndex = activeMonthsInYear.indexOf(calMonth);
@@ -35,33 +50,41 @@ export const CalendarView = ({
     }
   };
 
-  // Расчет сетки дней
+  // 4. Построение сетки календаря
   const calendarDays = useMemo(() => {
     const year = Number(activeYear);
     const month = calMonth;
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
 
-    let startDayOfWeek = firstDay.getDay() - 1;
+    let startDayOfWeek = firstDay.getDay() - 1; // 0 = Пн, 6 = Вс
     if (startDayOfWeek === -1) startDayOfWeek = 6;
 
     const days = [];
     const prevMonthLastDay = new Date(year, month, 0).getDate();
     
+    // Хвост предыдущего месяца (полупрозрачные дни)
     for (let i = startDayOfWeek - 1; i >= 0; i--) {
       const d = new Date(year, month - 1, prevMonthLastDay - i);
       days.push({ date: d, dayNumber: d.getDate(), isCurrentMonth: false, races: [] });
     }
 
+    // Дни текущего месяца
     for (let i = 1; i <= lastDay.getDate(); i++) {
       const d = new Date(year, month, i);
+      
+      // Ищем гонки для конкретного дня из уже отфильтрованного списка
       const dayRaces = filteredRaces.filter(r => {
-        const rDate = r.parsedDate || new Date(r.date);
+        const rDate = r.parsedDate || (r.date ? new Date(r.date) : null);
+        if (!rDate || isNaN(rDate.getTime())) return false; // Защита от битых дат
+        
         return rDate.getFullYear() === year && rDate.getMonth() === month && rDate.getDate() === i;
       });
+      
       days.push({ date: d, dayNumber: i, isCurrentMonth: true, races: dayRaces });
     }
 
+    // Хвост следующего месяца (полупрозрачные дни) для ровной сетки 7 колонок
     const remainingDays = 7 - (days.length % 7);
     if (remainingDays < 7) {
       for (let i = 1; i <= remainingDays; i++) {
@@ -72,8 +95,10 @@ export const CalendarView = ({
     return days;
   }, [activeYear, calMonth, filteredRaces]);
 
-  const monthNames = lang === 'ru' ? t.months : t.months;
-  const weekDays = t.weekDays || [];
+  const monthNames = lang === 'ru' 
+    ? (t.months || FALLBACK_RU_MONTHS) 
+    : (t.months || FALLBACK_EN_MONTHS);
+  const weekDays = t.weekDays || FALLBACK_WEEKDAYS;
 
   return (
     <div className="bg-surface-card border border-white/10 rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col gap-6">
@@ -82,10 +107,18 @@ export const CalendarView = ({
           {monthNames[calMonth]} <span className="text-zinc-500">{activeYear}</span>
         </h2>
         <div className="flex gap-2">
-          <button onClick={handlePrevMonth} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors">
+          <button 
+            onClick={handlePrevMonth} 
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+            disabled={activeMonthsInYear.length <= 1}
+          >
             <ChevronLeft size={20} />
           </button>
-          <button onClick={handleNextMonth} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors">
+          <button 
+            onClick={handleNextMonth} 
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+            disabled={activeMonthsInYear.length <= 1}
+          >
             <ChevronRight size={20} />
           </button>
         </div>
@@ -97,6 +130,7 @@ export const CalendarView = ({
             {d}
           </div>
         ))}
+        
         {calendarDays.map((day, idx) => {
           const hasRaces = day.races && day.races.length > 0;
           const isToday = new Date().toDateString() === day.date.toDateString();
@@ -104,7 +138,7 @@ export const CalendarView = ({
           return (
             <div
               key={idx}
-              onClick={() => hasRaces && openDayModal(day.races)}
+              onClick={() => hasRaces && openDayModal && openDayModal(day.races)}
               className={`min-h-[60px] sm:min-h-[80px] p-1 sm:p-1.5 rounded-xl border flex flex-col items-center sm:items-start transition-all ${
                 !day.isCurrentMonth ? 'opacity-30 border-transparent bg-transparent pointer-events-none' :
                 hasRaces ? 'border-white/10 bg-white/5 cursor-pointer hover:bg-white/10 hover:border-white/20 shadow-sm' :
@@ -119,7 +153,7 @@ export const CalendarView = ({
                 {day.races.map((r, i) => {
                   const seriesCode = (typeof r.series === 'object' ? r.series?.code || r.series?.short_name : r.series)?.toLowerCase() || '';
                   const sCfg = getSeriesConfig(seriesCode || r.series_id) || {};
-                  const isLive = isRaceLive(r);
+                  const isLive = typeof isRaceLive === 'function' ? isRaceLive(r) : false;
                   
                   let rawLabel = sCfg.shortLabel?.[lang] || sCfg.label?.[lang] || seriesCode || 'ALL';
                   let displayLabel = String(rawLabel).toUpperCase();
