@@ -66,7 +66,7 @@ export default function RaceCard({ race, onClick, isNext = false, isLiveNow = fa
   }
 
   return (
-    <div onClick={onClick} className={`relative group bg-surface-card border rounded-2xl p-4 sm:p-5 flex flex-col gap-2 transition-all duration-300 shadow-lg cursor-pointer ${isLiveNow ? 'border-red-500/50 shadow-glow-red' : isNext ? `${seriesBorderColor} ${seriesShadow}` : 'border-white/5 hover:border-white/30 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)]'}`}>
+    <div onClick={onClick} className={`relative group bg-surface-card border rounded-2xl p-4 sm:p-5 flex flex-col gap-2 transition-all duration-300 transform hover:scale-[1.01] active:scale-[0.99] shadow-lg cursor-pointer ${isLiveNow ? 'border-red-500/50 shadow-glow-red' : isNext ? `${seriesBorderColor} ${seriesShadow}` : 'border-white/5 hover:border-white/30 hover:shadow-[0_0_25px_rgba(255,255,255,0.15)]'}`}>
       
       {/* Плашка СКОРО с цветом серии */}
       {isNext && !isLiveNow && (
