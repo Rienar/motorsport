@@ -159,6 +159,7 @@ export default function App() {
         setActiveYear={setSelectedYear}
         availableYears={availableYears}
         activeMonth={selectedMonth}
+        setActiveMonth={setSelectedMonth}
         setIsMonthModalOpen={setIsMonthModalOpen}
         showPast={showPast}
         setShowPast={setShowPast}
