@@ -5,7 +5,7 @@ import { SERIES_CONFIG } from '../constants/seriesConfig';
 export const Header = ({
   lang, onToggleLang, activeSeries, setActiveSeries,
   activeYear, setActiveYear, availableYears,
-  activeMonth, setIsMonthModalOpen,
+  activeMonth, setActiveMonth, setIsMonthModalOpen,
   showPast, setShowPast, viewMode, setViewMode,
   onOpenStandings
 }) => {
@@ -15,6 +15,14 @@ export const Header = ({
   const yearsToDisplay = availableYears && availableYears.length > 0 ? availableYears : ['2026', '2027'];
   
   const isF1Active = (activeSeries || 'ALL').toLowerCase() === 'f1';
+
+  const handleJumpToToday = () => {
+    const currentYearStr = String(new Date().getFullYear());
+    setActiveYear(currentYearStr);
+    if (setActiveMonth) {
+      setActiveMonth(0);
+    }
+  };
 
   return (
     <header className="w-full max-w-4xl mx-auto px-4 sm:px-6 pt-6 pb-4 flex flex-col gap-4 relative">
@@ -78,7 +86,7 @@ export const Header = ({
               <button
                 key={y}
                 onClick={() => setActiveYear(y)}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all hover:scale-105 active:scale-95 ${
                   String(activeYear) === String(y) 
                     ? 'bg-purple-600 text-white shadow-[0_0_14px_rgba(168,85,247,0.45)]' 
                     : 'bg-transparent text-gray-400 hover:text-white hover:bg-white/5'
@@ -89,10 +97,19 @@ export const Header = ({
             ))}
             <button 
               onClick={() => setIsMonthModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all hover:scale-105 active:scale-95"
             >
               <Calendar className="w-3.5 h-3.5 text-zinc-500" />
               <span>{currentMonthLabel}</span>
+            </button>
+
+            {/* Кнопка Сегодня / Today */}
+            <button
+              onClick={handleJumpToToday}
+              className="px-2.5 py-1.5 rounded-md text-[10px] sm:text-xs font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/25 transition-all hover:scale-105 active:scale-95 shadow-[0_0_10px_rgba(99,102,241,0.25)]"
+              title={lang === 'ru' ? 'Перейти на текущий период' : 'Jump to current period'}
+            >
+              {lang === 'ru' ? 'Сегодня' : 'Today'}
             </button>
           </div>
         </div>
